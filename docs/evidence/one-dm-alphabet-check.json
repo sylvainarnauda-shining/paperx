@@ -1,0 +1,32 @@
+{
+  "source": "https://github.com/dailenson/One-DM/blob/main/data_loader/loader.py",
+  "blob_sha": "6ccae081d4694fbdf77b5dbc03f4b9579132852e",
+  "method": "static AST inspection, no model execution",
+  "cases": [
+    {
+      "text": "minimum elle ballon",
+      "unsupported": []
+    },
+    {
+      "text": "À Montpellier, Zoé étudie déjà ; où est le cahier ?",
+      "unsupported": [
+        "À",
+        "à",
+        "é",
+        "ù"
+      ]
+    },
+    {
+      "text": "L’élève écrit : cœur, Noël, façade, août.",
+      "unsupported": [
+        "ç",
+        "è",
+        "é",
+        "ë",
+        "û",
+        "œ",
+        "’"
+      ]
+    }
+  ]
+}
