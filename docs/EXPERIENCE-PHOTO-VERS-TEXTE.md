@@ -49,12 +49,28 @@ des difficultés d'accès à ce modèle.
 ```bash
 GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https://github.com/dailenson/One-DM   /home/user/dailenson/one-dm
 GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https://github.com/dailenson/DiffBrush /home/user/dailenson/diffbrush
-python3 experiences/preflight_photo_vers_texte.py     # code retour 1
+python3 experiences/preflight_photo_vers_texte.py            # code retour 1
+python3 experiences/test_preflight_photo_vers_texte.py       # 19 tests, hors réseau
 ```
 
-Le contrôle préalable ne lance aucune inférence et ne télécharge aucun poids.
-Il constate matériel, réseau, sources et couverture de caractères, puis rend un
-verdict avec un code de retour exploitable.
+Le diagnostic ne lance aucune inférence, ne télécharge aucun poids et
+**n'exécute aucun code tiers** : la constante `letters` des dépôts amont est
+extraite par `ast.parse` + `ast.literal_eval`, jamais par `eval` ni par import.
+Une valeur calculée (appel de fonction, f-chaîne, concaténation) est refusée,
+pas devinée — un test le prouve, ainsi que l'absence d'effet de bord.
+
+Il **ne conclut jamais qu'une inférence est possible.** Chaque point reçoit un
+statut : `VERIFIE` (preuve positive obtenue ici), `REFUTE` (preuve négative
+obtenue ici), `NON_VERIFIE` (aucune preuve — bloquant). Codes de retour : `1`
+au moins un blocage prouvé, `2` aucun blocage prouvé mais des points bloquants
+non vérifiés, `0` tous les points bloquants vérifiés — inatteignable par ce seul
+programme, et qui ne vaudrait toujours pas « prêt pour l'inférence ».
+
+Trois points restent `NON_VERIFIE` **par construction** : le téléchargement du
+fichier de poids exact, le droit d'usage de ces poids, et leur présence locale.
+Un tunnel HTTPS ouvert vers un domaine ne prouve ni l'existence, ni
+l'accessibilité, ni la taille d'un fichier ; la présence du pilote NVIDIA ne
+prouve pas qu'un GPU calcule.
 
 Résultats mesurés (2026-09-09, session cloud) :
 
@@ -82,10 +98,11 @@ service payant.
    NCCL exige un GPU. Un correctif minimal (backend `gloo`, saut de
    `cuda.set_device`) serait nécessaire — à ne pas écrire tant que les poids
    manquent, ce serait du code non testable.
-2. **Aucun poids accessible.** `drive.google.com`, `pan.baidu.com` et
-   `wisemodel.cn` répondent tous `403 Forbidden` au CONNECT de la passerelle
-   sortante de cette session. Aucun point de contrôle ne peut être obtenu ici.
-3. **Le VAE n'est pas accessible.** `huggingface.co` répond également `403` au
+2. **Aucun tunnel vers les hôtes de poids.** `drive.google.com`, `pan.baidu.com`
+   et `wisemodel.cn` répondent `403 Forbidden` au CONNECT de la passerelle
+   sortante. Le constat porte sur le tunnel vers le domaine : l'accès au fichier
+   de poids lui-même n'a pas été tenté et reste `NON_VERIFIE`.
+3. **Aucun tunnel vers le VAE.** `huggingface.co` répond également `403` au
    CONNECT. Les deux modèles en dépendent pour décoder le latent en image.
 4. **Chaîne de dépendances incompatible avec ce runtime.** Le couple épinglé
    `torch 1.13.1` / `torchvision 0.14.1` n'a pas de roue pour Python 3.11 côté
@@ -194,14 +211,23 @@ où il sera écrit, sur l'ASCII témoin d'abord :
 
 ## 9. Prochaine action minimale
 
-Obtenir un environnement d'exécution avec GPU **et** accès sortant à
-`huggingface.co` et à au moins un miroir de poids, puis relancer
-`experiences/preflight_photo_vers_texte.py`. Tant que ce script rend un code de
-retour non nul, écrire du code d'inférence serait écrire du code invérifiable.
+Obtenir un accès sortant à `huggingface.co` et à au moins un miroir de poids,
+puis relancer `experiences/preflight_photo_vers_texte.py`. Tant qu'il rend un
+code non nul, écrire du code d'inférence serait écrire du code invérifiable.
 
-En parallèle, deux démarches indépendantes du calcul : demander par écrit le
-droit d'usage des poids, et réunir un échantillon manuscrit explicitement
-réutilisable.
+Trois pistes restent ouvertes en parallèle, sans promesse et sans qu'un GPU
+payant soit imposé :
+
+- **Adaptation CPU, ou MPS sur Apple.** Les deux points d'entrée appellent
+  `nccl` et `cuda.set_device` sans condition ; un correctif local (backend
+  `gloo` ou exécution mono-processus, device paramétré) est techniquement à
+  portée. Reste à étudier, sans engagement : le coût d'un échantillonnage DDIM
+  50 pas dépend de la taille du UNet, **inconnue tant que les poids ne sont pas
+  obtenus**. Rien ne sera écrit avant d'avoir de quoi le mesurer.
+- **Droit d'usage des poids**, à demander par écrit aux auteurs — démarche
+  indépendante du calcul.
+- **Échantillon manuscrit explicitement réutilisable**, hors dépôt, jamais
+  client.
 
 ## 10. Hors périmètre
 

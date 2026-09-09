@@ -1,29 +1,35 @@
 #!/usr/bin/env python3
-"""Contrôle préalable à une première expérience « photo manuscrite -> nouveau texte ».
+"""Diagnostic préalable à une expérience « photo manuscrite -> nouveau texte ».
 
-Ce script ne lance AUCUNE inférence et ne télécharge RIEN. Il constate, dans
-l'environnement où il tourne, si les conditions d'une inférence réelle sont
-réunies :
+Ce programme **ne conclut jamais qu'une inférence est possible**. Il ne sait
+produire que des preuves, et il dit lesquelles lui manquent. Chaque point de
+contrôle reçoit l'un de trois statuts :
 
-  A. matériel disponible (CPU, mémoire, disque, GPU) ;
-  B. joignabilité des hôtes nécessaires (code, poids, VAE, index de paquets) ;
-  C. présence des dépôts amont aux commits épinglés, et leur licence ;
-  D. couverture des phrases témoins par l'alphabet PUBLIÉ de chaque modèle,
-     avec la liste exacte des caractères impossibles ;
-  E. verdict : inférence possible ou bloquée, et prochaine action minimale.
+  VERIFIE      preuve positive obtenue ici même ;
+  REFUTE       preuve négative obtenue ici même (blocage constaté) ;
+  NON_VERIFIE  aucune preuve ni dans un sens ni dans l'autre — bloquant.
 
-Il est volontairement isolé : bibliothèque standard uniquement, aucun import du
-banc d'essai paperx, aucune écriture hors de la sortie console.
+Plusieurs points sont NON_VERIFIE **par construction** : ce programme ne
+télécharge aucun poids, n'installe rien, n'exécute aucun code tiers et ne peut
+pas attester d'un droit d'usage. Un tunnel HTTPS ouvert vers un domaine ne
+prouve pas l'accès au fichier de poids exact ; la présence du pilote NVIDIA ne
+prouve pas qu'un GPU calcule.
 
     python3 experiences/preflight_photo_vers_texte.py
-    python3 experiences/preflight_photo_vers_texte.py --repos /home/user/dailenson
+    python3 experiences/preflight_photo_vers_texte.py --repos /chemin/clones
+    python3 experiences/preflight_photo_vers_texte.py --hors-ligne
 
-Code de retour : 0 si une inférence réelle est possible ici, 1 sinon.
+Codes de retour :
+    1  au moins un point bloquant est REFUTE (blocage prouvé) ;
+    2  aucun blocage prouvé, mais des points bloquants restent NON_VERIFIE ;
+    0  tous les points bloquants sont VERIFIE — inatteignable par ce seul
+       programme, et ne vaudrait toujours pas « prêt pour l'inférence ».
 """
 
 from __future__ import annotations
 
 import argparse
+import ast
 import os
 import shutil
 import socket
@@ -31,10 +37,12 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+from dataclasses import dataclass
 from pathlib import Path
 
-# --- Sources amont, épinglées -------------------------------------------------
-# Commits relevés le 2026-09-09 par clone superficiel du dépôt public.
+VERIFIE, REFUTE, NON_VERIFIE = "VERIFIE", "REFUTE", "NON_VERIFIE"
+
+# --- Sources amont, épinglées (relevé du 2026-09-09, clone superficiel) -------
 UPSTREAM = {
     "One-DM": {
         "url": "https://github.com/dailenson/One-DM",
@@ -42,7 +50,6 @@ UPSTREAM = {
         "dir": "one-dm",
         "alphabet_file": "data_loader/loader.py",
         "licence_attendue": "MIT License",
-        "entree": "test.py",
     },
     "DiffBrush": {
         "url": "https://github.com/dailenson/DiffBrush",
@@ -50,88 +57,168 @@ UPSTREAM = {
         "dir": "diffbrush",
         "alphabet_file": "data_loader/IAMDataset.py",
         "licence_attendue": "MIT License",
-        "entree": "generate.py",
     },
 }
 
-#: Hôtes indispensables à une inférence réelle, et ce qu'ils portent.
-HOSTS = {
-    "github.com": "code source des deux dépôts (lecture git anonyme)",
-    "pypi.org": "roues Python (torch, diffusers, …)",
+HOTES = {
+    "github.com": "code source (lecture git anonyme)",
+    "pypi.org": "roues Python",
     "huggingface.co": "VAE stable-diffusion-v1-5 exigé par les deux modèles",
-    "drive.google.com": "poids pré-entraînés (lien principal des deux dépôts)",
+    "drive.google.com": "poids pré-entraînés (lien principal)",
     "pan.baidu.com": "poids pré-entraînés (miroir)",
     "wisemodel.cn": "poids pré-entraînés (miroir One-DM)",
 }
 
 TEMOINS = {
-    "ASCII témoin": "experiences/temoin_ascii.txt",
-    "français": "experiences/temoin_francais.txt",
+    "ascii": "experiences/temoin_ascii.txt",
+    "francais": "experiences/temoin_francais.txt",
 }
 
-
-def titre(texte: str) -> None:
-    print(f"\n{texte}\n" + "-" * len(texte))
+MODULES_REQUIS = ("torch", "torchvision", "diffusers", "transformers", "numpy", "PIL")
 
 
-# --- A. Matériel --------------------------------------------------------------
+@dataclass(frozen=True)
+class Constat:
+    """Un point de contrôle et la preuve qui le soutient — ou son absence."""
 
-def controle_materiel() -> dict:
-    total_ram = None
+    domaine: str
+    nom: str
+    statut: str
+    preuve: str
+    bloquant: bool = True
+
+
+# --- Extraction de l'alphabet : analyse syntaxique, jamais d'exécution -------
+
+def alphabet_publie(chemin: Path) -> tuple[str | None, str]:
+    """Lit la constante `letters` d'un fichier tiers **sans l'exécuter**.
+
+    Le fichier est traité comme du texte : `ast.parse` en construit l'arbre,
+    puis seule une valeur littérale (`ast.literal_eval`) est acceptée. Aucun
+    import, aucun appel, aucune interpolation ne passe : une valeur calculée
+    est refusée, pas devinée.
+    """
+    try:
+        source = chemin.read_text(encoding="utf-8")
+    except OSError as exc:
+        return None, f"lecture impossible ({type(exc).__name__})"
+    try:
+        arbre = ast.parse(source, filename=str(chemin))
+    except SyntaxError as exc:
+        return None, f"source non analysable ({exc.msg})"
+
+    for noeud in arbre.body:                      # affectations de premier niveau
+        if isinstance(noeud, ast.Assign):
+            cibles, valeur = noeud.targets, noeud.value
+        elif isinstance(noeud, ast.AnnAssign) and noeud.value is not None:
+            cibles, valeur = [noeud.target], noeud.value
+        else:
+            continue
+        if not any(isinstance(c, ast.Name) and c.id == "letters" for c in cibles):
+            continue
+        try:
+            litteral = ast.literal_eval(valeur)
+        except (ValueError, SyntaxError, TypeError, MemoryError, RecursionError):
+            return None, "valeur de `letters` non littérale (calculée) : refusée"
+        if isinstance(litteral, str):
+            return litteral, "littéral chaîne"
+        if isinstance(litteral, (list, tuple)) and all(isinstance(v, str) for v in litteral):
+            return "".join(litteral), "littéral séquence de chaînes"
+        return None, f"littéral de type inattendu ({type(litteral).__name__})"
+    return None, "aucune affectation `letters` de premier niveau"
+
+
+def premiere_ligne_utile(chemin: Path) -> str | None:
+    """Première ligne non vide d'un fichier, ou None (fichier absent ou vide)."""
+    try:
+        texte = chemin.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    for ligne in texte.splitlines():
+        if ligne.strip():
+            return ligne.strip()
+    return None
+
+
+# --- A. Matériel et pile logicielle ------------------------------------------
+
+def constats_materiel() -> list[Constat]:
+    out: list[Constat] = []
+    pilote = shutil.which("nvidia-smi") is not None or any(Path("/dev").glob("nvidia*"))
+    out.append(Constat("matériel", "pilote GPU NVIDIA présent",
+                       VERIFIE if pilote else REFUTE,
+                       "nvidia-smi ou /dev/nvidia* détecté" if pilote
+                       else "ni nvidia-smi ni /dev/nvidia*", bloquant=False))
+    out.append(Constat(
+        "matériel", "GPU réellement utilisable pour le calcul",
+        REFUTE if not pilote else NON_VERIFIE,
+        "aucun pilote : aucun contexte CUDA possible" if not pilote
+        else "non testé : exigerait torch et une allocation réelle, "
+             "que ce programme n'effectue pas"))
+
+    ram = None
     try:
         for ligne in Path("/proc/meminfo").read_text().splitlines():
             if ligne.startswith("MemTotal:"):
-                total_ram = int(ligne.split()[1]) / 1024 / 1024
+                ram = int(ligne.split()[1]) / 1024 / 1024
                 break
-    except OSError:
+    except (OSError, ValueError, IndexError):
         pass
-    disque = shutil.disk_usage(".")
-    gpu = shutil.which("nvidia-smi") is not None or any(
-        Path("/dev").glob("nvidia*"))
+    libre = shutil.disk_usage(".").free / 1e9
+    out.append(Constat("matériel", "ressources mesurées", VERIFIE,
+                       f"{os.cpu_count()} processeurs, "
+                       f"{f'{ram:.1f} Gio' if ram else 'mémoire inconnue'}, "
+                       f"{libre:.1f} Go libres, Python {sys.version.split()[0]}",
+                       bloquant=False))
 
-    titre("A. Matériel disponible")
-    print(f"  processeurs        : {os.cpu_count()}")
-    print(f"  mémoire vive       : {total_ram:.1f} Gio" if total_ram
-          else "  mémoire vive       : inconnue")
-    print(f"  disque libre       : {disque.free / 1e9:.1f} Go")
-    print(f"  GPU NVIDIA         : {'oui' if gpu else 'NON'}")
-    print(f"  Python             : {sys.version.split()[0]}")
-    return {"gpu": gpu, "ram_gio": total_ram, "disque_go": disque.free / 1e9}
+    manquants = [m for m in MODULES_REQUIS if __import__("importlib.util", fromlist=["util"])
+                 .find_spec(m) is None]
+    out.append(Constat("matériel", "pile d'inférence installée",
+                       REFUTE if manquants else VERIFIE,
+                       f"modules absents : {', '.join(manquants)}" if manquants
+                       else "torch, torchvision, diffusers, transformers, numpy, PIL présents"))
+    return out
 
 
-# --- B. Réseau ----------------------------------------------------------------
+# --- B. Réseau : un tunnel n'est pas un accès au fichier ---------------------
 
-def joignable(hote: str, timeout: float = 12.0) -> tuple[bool, str]:
-    """Teste l'ouverture d'un tunnel HTTPS. Aucun octet de contenu n'est lu."""
+def tunnel_https(hote: str, timeout: float = 12.0) -> tuple[bool, str]:
+    """Ouvre un tunnel HTTPS vers le domaine. Ne lit aucun contenu, ne prouve
+    l'accès à aucun fichier particulier."""
     proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
     try:
         if proxy:
             opener = urllib.request.build_opener(
                 urllib.request.ProxyHandler({"https": proxy}))
-            requete = urllib.request.Request(f"https://{hote}/", method="HEAD")
-            opener.open(requete, timeout=timeout).close()
+            opener.open(urllib.request.Request(f"https://{hote}/", method="HEAD"),
+                        timeout=timeout).close()
         else:
             socket.create_connection((hote, 443), timeout=timeout).close()
-        return True, "joignable"
-    except urllib.error.HTTPError as exc:            # répond, donc joignable
-        return True, f"joignable (HTTP {exc.code})"
-    except Exception as exc:                          # noqa: BLE001
-        return False, f"REFUSÉ ({type(exc).__name__}: {str(exc)[:60]})"
+        return True, "tunnel ouvert"
+    except urllib.error.HTTPError as exc:
+        return True, f"tunnel ouvert (le domaine répond HTTP {exc.code})"
+    except Exception as exc:                      # noqa: BLE001
+        return False, f"{type(exc).__name__}: {str(exc)[:70]}"
 
 
-def controle_reseau() -> dict:
-    titre("B. Hôtes nécessaires")
-    etat = {}
-    for hote, role in HOSTS.items():
-        ok, detail = joignable(hote)
-        etat[hote] = ok
-        print(f"  {hote:20s} {'OK    ' if ok else 'BLOQUÉ'}  {role}")
-        if not ok:
-            print(f"  {'':20s}        {detail}")
-    return etat
+def constats_reseau(hors_ligne: bool) -> list[Constat]:
+    out: list[Constat] = []
+    for hote, role in HOTES.items():
+        if hors_ligne:
+            out.append(Constat("réseau", f"tunnel HTTPS vers {hote}", NON_VERIFIE,
+                               f"mode hors ligne : non testé ({role})"))
+            continue
+        ok, detail = tunnel_https(hote)
+        out.append(Constat("réseau", f"tunnel HTTPS vers {hote}",
+                           VERIFIE if ok else REFUTE, f"{detail} — {role}"))
+    out.append(Constat(
+        "réseau", "téléchargement du fichier de poids exact", NON_VERIFIE,
+        "aucun téléchargement tenté : un tunnel vers le domaine ne prouve ni "
+        "l'existence, ni l'accessibilité, ni la taille du fichier de poids"))
+    return out
 
 
-# --- C. Dépôts amont ----------------------------------------------------------
+# --- C. Dépôts amont ---------------------------------------------------------
 
 def commit_de(chemin: Path) -> str | None:
     try:
@@ -142,151 +229,163 @@ def commit_de(chemin: Path) -> str | None:
         return None
 
 
-def controle_depots(racine: Path) -> dict:
-    titre("C. Dépôts amont (commits épinglés)")
-    etat = {}
+def constats_depots(racine: Path) -> tuple[list[Constat], dict]:
+    out: list[Constat] = []
+    etat: dict = {}
     for nom, meta in UPSTREAM.items():
         chemin = racine / meta["dir"]
+        etat[nom] = {"chemin": chemin, "present": chemin.exists()}
         if not chemin.exists():
-            print(f"  {nom:10s} ABSENT — clonez-le :")
-            print(f"             GIT_LFS_SKIP_SMUDGE=1 git clone {meta['url']} {chemin}")
-            print(f"             git -C {chemin} checkout {meta['commit']}")
-            etat[nom] = {"present": False, "chemin": chemin}
+            out.append(Constat("sources", f"{nom} : dépôt au commit épinglé", NON_VERIFIE,
+                               f"absent de {chemin} — cloner puis "
+                               f"git checkout {meta['commit'][:12]}"))
+            out.append(Constat("sources", f"{nom} : licence du code", NON_VERIFIE,
+                               "dépôt absent, licence non lue"))
             continue
         tete = commit_de(chemin)
         conforme = tete == meta["commit"]
-        licence = chemin / "LICENSE"
-        texte_licence = licence.read_text(encoding="utf-8", errors="replace").splitlines()[0].strip() \
-            if licence.exists() else "AUCUN fichier LICENSE"
-        licence_ok = texte_licence == meta["licence_attendue"]
-        print(f"  {nom:10s} présent | commit {'conforme' if conforme else 'DIFFÉRENT'} "
-              f"({(tete or '?')[:12]}…, attendu {meta['commit'][:12]}…)")
-        print(f"  {'':10s} licence du CODE : {texte_licence} "
-              f"{'(conforme)' if licence_ok else '(À VÉRIFIER)'}")
-        etat[nom] = {"present": True, "chemin": chemin,
-                     "commit_ok": conforme, "licence_ok": licence_ok}
-    print("  Rappel : la licence MIT porte sur le CODE. Les POIDS pré-entraînés sont")
-    print("  distribués à part (Google Drive / Baidu / wisemodel) sans licence propre")
-    print("  énoncée dans les dépôts : droit d'usage à établir avant tout usage payant.")
-    return etat
+        out.append(Constat("sources", f"{nom} : dépôt au commit épinglé",
+                           VERIFIE if conforme else REFUTE,
+                           f"HEAD {(tete or 'illisible')[:12]}…, "
+                           f"attendu {meta['commit'][:12]}…"))
+        ligne = premiere_ligne_utile(chemin / "LICENSE")
+        if ligne is None:
+            statut, preuve = NON_VERIFIE, "LICENSE absent ou vide : licence non établie"
+        elif ligne == meta["licence_attendue"]:
+            statut, preuve = VERIFIE, f"LICENSE commence par « {ligne} »"
+        else:
+            statut, preuve = REFUTE, f"LICENSE commence par « {ligne} », attendu « {meta['licence_attendue']} »"
+        out.append(Constat("sources", f"{nom} : licence du code", statut, preuve))
+
+    out.append(Constat(
+        "sources", "droit d'usage des poids pré-entraînés", NON_VERIFIE,
+        "aucune licence énoncée pour les poids dans les deux dépôts (la licence "
+        "MIT porte sur le code) : accord écrit des auteurs à obtenir"))
+    out.append(Constat(
+        "sources", "poids pré-entraînés présents localement", NON_VERIFIE
+        if not any((e["chemin"] / "model_zoo").is_dir() and
+                   any((e["chemin"] / "model_zoo").iterdir())
+                   for e in etat.values() if e["present"]) else VERIFIE,
+        "aucun model_zoo peuplé dans les clones (ce programme n'en télécharge pas)"))
+    return out, etat
 
 
 # --- D. Couverture des phrases témoins ---------------------------------------
 
-def alphabet_publie(chemin_fichier: Path) -> str | None:
-    """Lit la constante `letters` du dépôt amont. Rien n'est recopié ici."""
-    try:
-        for ligne in chemin_fichier.read_text(encoding="utf-8").splitlines():
-            if ligne.startswith("letters"):
-                valeur = ligne.split("=", 1)[1].strip()
-                resultat = eval(valeur, {"__builtins__": {}}, {})  # littéral seul
-                if isinstance(resultat, str):
-                    return resultat
-                if isinstance(resultat, (list, tuple)):
-                    return "".join(resultat)
-    except (OSError, SyntaxError, ValueError, IndexError):
-        return None
-    return None
-
-
-def controle_couverture(etat_depots: dict, racine_projet: Path) -> dict:
-    titre("D. Caractères impossibles avec l'alphabet PUBLIÉ")
+def constats_alphabet(etat: dict, racine_projet: Path) -> list[Constat]:
+    out: list[Constat] = []
     phrases = {}
-    for nom, rel in TEMOINS.items():
+    for cle, rel in TEMOINS.items():
         chemin = racine_projet / rel
-        if not chemin.exists():
-            print(f"  phrase témoin absente : {rel}")
-            continue
-        phrases[nom] = chemin.read_text(encoding="utf-8").rstrip("\n")
+        if chemin.exists():
+            phrases[cle] = chemin.read_text(encoding="utf-8").rstrip("\n")
+        else:
+            out.append(Constat("alphabet", f"phrase témoin {cle}", NON_VERIFIE,
+                               f"fichier absent : {rel}"))
 
-    resultats = {}
-    for modele, meta in UPSTREAM.items():
-        infos = etat_depots.get(modele, {})
+    for nom, meta in UPSTREAM.items():
+        infos = etat.get(nom, {})
         if not infos.get("present"):
-            print(f"  {modele} : dépôt absent, vérification impossible")
+            out.append(Constat("alphabet", f"{nom} : couverture des témoins", NON_VERIFIE,
+                               "dépôt absent, alphabet non lu"))
             continue
-        lettres = alphabet_publie(infos["chemin"] / meta["alphabet_file"])
+        lettres, comment = alphabet_publie(infos["chemin"] / meta["alphabet_file"])
         if lettres is None:
-            print(f"  {modele} : alphabet illisible dans {meta['alphabet_file']}")
+            out.append(Constat("alphabet", f"{nom} : couverture des témoins", NON_VERIFIE,
+                               f"alphabet non extrait — {comment}"))
             continue
-        print(f"  {modele} — alphabet publié : {len(lettres)} caractères "
-              f"({meta['alphabet_file']})")
-        resultats[modele] = {}
-        for nom, phrase in phrases.items():
+        for cle, phrase in phrases.items():
             manquants = sorted({c for c in phrase if c not in lettres}, key=ord)
-            resultats[modele][nom] = manquants
             if manquants:
                 detail = ", ".join(f"{c!r} U+{ord(c):04X}" for c in manquants)
-                print(f"      {nom:14s} : {len(manquants)} caractère(s) IMPOSSIBLE(S) "
-                      f"-> {detail}")
-                print(f"      {'':14s}   (à signaler tels quels ; ne jamais retirer "
-                      "un accent pour masquer la limite)")
+                out.append(Constat(
+                    "alphabet", f"{nom} : témoin {cle} écrivable", REFUTE,
+                    f"{len(manquants)} caractère(s) impossible(s) : {detail} "
+                    "— à signaler tels quels, jamais à retirer"))
             else:
-                print(f"      {nom:14s} : intégralement couvert")
-    return resultats
+                out.append(Constat("alphabet", f"{nom} : témoin {cle} écrivable", VERIFIE,
+                                   f"tous les caractères figurent dans l'alphabet publié "
+                                   f"({len(lettres)} caractères, {comment})"))
+    return out
 
 
-# --- E. Verdict ---------------------------------------------------------------
+# --- E. Synthèse -------------------------------------------------------------
 
-def verdict(materiel: dict, reseau: dict, depots: dict) -> bool:
-    titre("E. Verdict")
-    blocages: list[str] = []
+def synthese(constats: list[Constat]) -> tuple[int, list[str]]:
+    """Rend un code de retour et les lignes de conclusion.
 
-    if not materiel["gpu"]:
-        blocages.append(
-            "aucun GPU : les points d'entrée publiés appellent "
-            "dist.init_process_group(backend='nccl') et torch.cuda.set_device() "
-            "sans condition ; --device cpu ne suffit pas")
-    for hote in ("huggingface.co",):
-        if not reseau.get(hote):
-            blocages.append(
-                f"{hote} injoignable : le VAE stable-diffusion-v1-5 exigé par les "
-                "deux modèles ne peut pas être obtenu")
-    if not any(reseau.get(h) for h in ("drive.google.com", "pan.baidu.com", "wisemodel.cn")):
-        blocages.append(
-            "aucun hôte de poids joignable (Google Drive, Baidu, wisemodel) : "
-            "aucun point de contrôle pré-entraîné ne peut être obtenu")
-    for nom, infos in depots.items():
-        if not infos.get("present"):
-            blocages.append(f"dépôt {nom} absent localement")
-        elif not infos.get("commit_ok"):
-            blocages.append(f"dépôt {nom} sur un autre commit que celui épinglé")
+    Ne produit jamais d'affirmation de faisabilité : au mieux « aucun blocage
+    prouvé », ce qui n'est pas « prêt pour l'inférence ».
+    """
+    bloquants = [c for c in constats if c.bloquant]
+    refutes = [c for c in bloquants if c.statut == REFUTE]
+    inconnus = [c for c in bloquants if c.statut == NON_VERIFIE]
 
-    if blocages:
-        print("  INFÉRENCE IMPOSSIBLE ICI. Blocages constatés :")
-        for i, b in enumerate(blocages, 1):
-            print(f"    {i}. {b}")
-        print("\n  Prochaine action minimale : obtenir un environnement avec GPU et")
-        print("  accès sortant à huggingface.co et à un miroir de poids, puis relancer")
-        print("  ce script. Rien d'autre n'est à faire tant que ces accès manquent.")
-        return False
+    lignes = [
+        f"Points de contrôle : {len(constats)} "
+        f"({sum(c.statut == VERIFIE for c in constats)} VERIFIE, "
+        f"{sum(c.statut == REFUTE for c in constats)} REFUTE, "
+        f"{sum(c.statut == NON_VERIFIE for c in constats)} NON_VERIFIE)",
+        "",
+    ]
+    if refutes:
+        lignes.append(f"BLOCAGES PROUVÉS ({len(refutes)}) :")
+        lignes += [f"  - {c.nom} : {c.preuve}" for c in refutes]
+        lignes.append("")
+    if inconnus:
+        lignes.append(f"NON VÉRIFIÉ, donc bloquant ({len(inconnus)}) :")
+        lignes += [f"  - {c.nom} : {c.preuve}" for c in inconnus]
+        lignes.append("")
 
-    print("  Conditions matérielles, réseau et sources réunies.")
-    print("  Restent à vérifier AVANT toute inférence, hors de la portée de ce script :")
-    print("    - droit d'usage des poids pré-entraînés (aucune licence propre publiée) ;")
-    print("    - échantillon de style explicitement réutilisable — les images livrées")
-    print("      dans DiffBrush/test_data suivent le nommage des formulaires IAM,")
-    print("      base réservée à la recherche : ne pas s'en servir pour un service payant ;")
-    print("    - jamais d'échantillon client dans un dépôt public.")
-    return True
+    lignes.append("Ce diagnostic rapporte ses propres preuves et rien de plus.")
+    lignes.append("Il ne peut, à lui seul, établir qu'une inférence est réalisable.")
+    if refutes or inconnus:
+        lignes += [
+            "",
+            "Pistes ouvertes, sans promesse et sans imposer de GPU payant :",
+            "  - adaptation CPU (ou MPS sur Apple) des points d'entrée, qui appellent",
+            "    aujourd'hui nccl et cuda.set_device sans condition : à étudier, le",
+            "    coût réel dépendant de la taille du UNet, inconnue tant que les poids",
+            "    ne sont pas obtenus ;",
+            "  - demande écrite du droit d'usage des poids, indépendante du calcul ;",
+            "  - échantillon manuscrit explicitement réutilisable, jamais client.",
+        ]
+    return (1 if refutes else 2 if inconnus else 0), lignes
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description="Diagnostic — ne conclut jamais à la faisabilité d'une inférence.")
     parser.add_argument("--repos", default="/home/user/dailenson",
                         help="dossier contenant les clones amont (défaut : %(default)s)")
+    parser.add_argument("--hors-ligne", action="store_true",
+                        help="ne teste aucun hôte ; les points réseau restent NON_VERIFIE")
     args = parser.parse_args(argv)
 
     racine_projet = Path(__file__).resolve().parent.parent
-    print("Contrôle préalable — photo manuscrite vers nouveau texte")
-    print("Aucune inférence lancée, aucun téléchargement effectué.")
+    print("Diagnostic — photo manuscrite vers nouveau texte")
+    print("Aucune inférence, aucun téléchargement de poids, aucun code tiers exécuté.\n")
 
-    materiel = controle_materiel()
-    reseau = controle_reseau()
-    depots = controle_depots(Path(args.repos))
-    controle_couverture(depots, racine_projet)
-    return 0 if verdict(materiel, reseau, depots) else 1
+    constats = list(constats_materiel())
+    constats += constats_reseau(args.hors_ligne)
+    depots, etat = constats_depots(Path(args.repos))
+    constats += depots
+    constats += constats_alphabet(etat, racine_projet)
+
+    domaine = None
+    for c in constats:
+        if c.domaine != domaine:
+            domaine = c.domaine
+            print(f"\n[{domaine}]")
+        marque = "" if c.bloquant else "  (non bloquant)"
+        print(f"  {c.statut:11s} {c.nom}{marque}")
+        print(f"              {c.preuve}")
+
+    code, lignes = synthese(constats)
+    print("\n" + "=" * 72)
+    for ligne in lignes:
+        print(ligne)
+    return code
 
 
 if __name__ == "__main__":
