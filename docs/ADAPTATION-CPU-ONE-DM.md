@@ -6,8 +6,13 @@ aucun poids téléchargé, aucun modèle instancié. Rien ici ne promet qu'une
 inférence CPU soit rapide, ni même possible : le but est de savoir **ce qu'il
 faudrait changer**, et **ce qui empêche encore d'essayer**.
 
-Aucun GPU payant n'est supposé nécessaire, et aucun n'est recommandé à ce stade :
-tant que les poids sont inaccessibles, la question du matériel ne se pose pas.
+Aucun GPU payant n'est supposé nécessaire, et aucun n'est recommandé à ce stade.
+
+**Portée des constats réseau.** Les refus rapportés ici (`403`, `000` au CONNECT)
+sont ceux de la passerelle sortante de **l'environnement cloud où cette analyse a
+été faite**. Ils ne décrivent ni un poste de travail, ni le Mac de l'équipe, ni
+une impossibilité générale : ailleurs, ces hôtes sont probablement joignables.
+C'est une contrainte de ce banc d'analyse, à re-tester sur chaque machine.
 
 ## 1. Ce dont une inférence « un mot » a réellement besoin
 
@@ -18,7 +23,7 @@ laisse croire.
 |---|---|---|
 | Point de contrôle One-DM (`--one_dm`) | **oui** | `test.py:68` |
 | VAE de stable-diffusion-v1-5 (`--stable_dif_path`) | **oui**, en décodage seul | `test.py:74`, `diffusion.py:147` |
-| Poids ImageNet de torchvision `resnet18` | **oui, ×3, à la construction** | `fusion.py:56` et `fusion.py:64` (appelée deux fois) |
+| Poids ImageNet de torchvision `resnet18` | **oui**, trois demandes à la construction | `fusion.py:56` et `fusion.py:64` (appelée deux fois) |
 | `data/unifont.pickle` (images de contenu) | **oui** | `loader.py:get_symbols` |
 | Une image de style + son laplacien | **oui** | `Random_StyleIAMDataset` |
 | Un fichier corpus listé dans `generate_type` | **oui** | `loader.py:19`, `test.py:29` |
@@ -26,8 +31,12 @@ laisse croire.
 | `vae_HTR138.pth` | non | `train_finetune.py --ocr_model` seulement |
 
 Deux des trois poids annoncés dans le « Model Zoo » ne servent donc **pas** à
-générer un mot. En revanche un quatrième téléchargement, absent du README,
-est exigé : les poids ImageNet de `resnet18`, tirés de `download.pytorch.org`.
+générer un mot. En revanche une quatrième source de poids, absente du README,
+est sollicitée : les poids ImageNet de `resnet18`, servis par
+`download.pytorch.org`. Le code en fait **trois demandes** à la construction ;
+combien de transferts réseau en résultent n'a **pas été mesuré** — torchvision
+passe par un cache local partagé (`TORCH_HOME`), et un cache déjà rempli peut
+n'entraîner aucun transfert.
 
 Taille du calcul, dérivée de `test.py:98` : pour un mot de *n* caractères, le
 latent vaut `1 × 4 × 8 × 4n` et l'image décodée `64 × 32n` pixels — 512 valeurs
@@ -69,8 +78,12 @@ Bonne surprise, et elle réduit beaucoup l'ampleur du correctif :
 
 ## 4. Changements minimaux
 
-Cinq modifications, toutes dans `test.py`, aucune dans les modèles. **Non
-appliquées et non testées** : elles ne peuvent pas l'être sans point de contrôle.
+Cinq modifications, toutes dans `test.py`, aucune dans les modèles.
+**Proposition non validée** : écrite ici, ni appliquée ni exécutée. Elle reste
+testable sans aucun poids — un test structurel (le script démarre en
+mono-processus, atteint `--device cpu`, et échoue plus loin sur l'absence de
+point de contrôle plutôt que sur NCCL) suffirait à valider le point 1. Seule la
+génération d'une image demande les poids.
 
 1. **Lignes 22-24** — n'initialiser le mode distribué que s'il est réellement
    demandé :
@@ -97,12 +110,19 @@ machine : les tenseurs de pas de temps sont en `int64` (`diffusion.py:120-121`)
 et le support MPS des entiers 64 bits dépend de la version de torch. À
 constater, pas à supposer.
 
-## 5. Obstacles réels, du plus bloquant au moins
+## 5. Obstacles, du plus bloquant au moins
 
-1. **Rien à exécuter.** Point de contrôle One-DM et VAE restent inaccessibles
-   (voir `docs/EXPERIENCE-PHOTO-VERS-TEXTE.md`). Le correctif ci-dessus est donc
-   pour l'instant du code que personne ne peut faire tourner.
-2. **`download.pytorch.org` est bloqué ici** (`000` au CONNECT). Or
+Les deux premiers sont **propres à l'environnement cloud** de cette analyse et
+peuvent ne pas exister ailleurs ; les suivants tiennent au dépôt amont lui-même.
+
+1. **Pas de poids en main dans cet environnement.** Point de contrôle One-DM et
+   VAE ne sont pas récupérables depuis la session cloud où cette analyse a été
+   faite (voir `docs/EXPERIENCE-PHOTO-VERS-TEXTE.md`). Une génération complète y
+   est donc hors de portée depuis cette session ; sur une machine disposant de
+   ces accès, la question ne se pose pas de la même façon, et le test structurel
+   décrit au § 4 reste faisable partout, sans aucun poids.
+2. **`download.pytorch.org` est refusé depuis cette session cloud** (`000` au
+   CONNECT ; à re-tester ailleurs). Or
    `fusion.py:56` et `fusion.py:64` demandent `ResNet18_Weights.DEFAULT` **à la
    construction du modèle**, avant même le chargement du point de contrôle. Deux
    contournements, tous deux à vérifier :
@@ -113,8 +133,8 @@ constater, pas à supposer.
      réussi avec le vrai point de contrôle le prouvera. Ne pas modifier ces
      lignes sur une intuition.
 3. **`data/unifont.pickle` est absent du dépôt** : il vient de l'archive de jeu
-   de données, hébergée sur les mêmes hôtes bloqués. Sans lui, `ContentData`
-   échoue avant tout calcul.
+   de données, hébergée sur les mêmes hôtes que les poids — récupérable là où
+   ces hôtes répondent. Sans ce fichier, `ContentData` échoue avant tout calcul.
 4. **Aucun prétraitement laplacien n'est fourni.** Une photo réelle doit être
    découpée en mots de 64 px de haut et plus de 128 px de large, et chaque image
    doit avoir son laplacien de même nom dans un dossier parallèle.
@@ -123,8 +143,8 @@ constater, pas à supposer.
 6. **Coût de calcul inconnu.** Le latent est minuscule, mais la taille du UNet ne
    l'est pas forcément, et elle n'est pas établie : la mesurer exigerait
    d'instancier du code tiers, ce que cette analyse s'interdit. 50 passes UNet
-   par mot sur 4 cœurs peut aussi bien prendre quelques secondes que plusieurs
-   minutes. **Aucun chiffre n'est avancé ici.**
+   par mot peuvent aussi bien prendre quelques secondes que plusieurs minutes,
+   selon la machine. **Aucun chiffre n'est avancé ici.**
 
 ## 6. Ce que cette analyse ne dit pas
 
