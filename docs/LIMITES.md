@@ -39,8 +39,13 @@ vitesses, des levées et le versionnement des profils. Il **ne modélise pas** :
 
 Conséquence assumée : `paperx.gate.MACHINE_OUTPUT_AVAILABLE` vaut `False` et le
 constat `CHAINE_NON_VALIDEE` est émis systématiquement. Écrire `calibrated=True`
-dans un profil ne prouve rien et ne débloque rien. Le verrou ne doit pas être
-levé depuis ce dépôt.
+dans un profil ne prouve rien et ne débloque rien.
+
+Le verrou est fermé **à cette étape**, pas définitivement. Il sera levé dans un
+composant local séparé du site public, à l'intérieur de ce dépôt `paperx` — qui
+reste la source de vérité — une fois la calibration et les essais réels
+effectués et revus. Ce n'est pas une interdiction perpétuelle de réaliser le
+projet, c'est le refus de produire une sortie machine avant d'avoir mesuré.
 
 ## 4. Course machine insuffisante pour une A4
 

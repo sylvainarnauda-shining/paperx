@@ -33,6 +33,7 @@
     "evenements": [],
     "lignes": 5,
     "metriques": {
+      "bande_encre_ligne_mm": 5.85,
       "bande_utile_mm": [
         20.62,
         191.8
@@ -93,7 +94,7 @@
               "paperx.gate.MACHINE_OUTPUT_AVAILABLE = False"
             ],
             "gravite": "bloquant_machine",
-            "message": "chaîne non validée de bout en bout : offsets XY réels, hauteurs de contact et de levée, obstacles physiques et état machine ne sont pas représentés dans ce banc d'essai. Aucun profil ne peut devenir « prêt machine » ici.",
+            "message": "chaîne non validée de bout en bout : offsets XY réels, hauteurs de contact et de levée, obstacles physiques et état machine ne sont pas représentés à cette étape du banc d'essai. Aucun profil ne peut devenir « prêt machine » tant que la calibration, les essais réels et leur revue n'ont pas eu lieu ; la sortie machine sera alors ouverte par un composant local séparé du site public, dans ce dépôt.",
             "occurrences": 1
           },
           {
@@ -261,7 +262,7 @@
     "code_verrou": "CHAINE_NON_VALIDEE",
     "disponible": false,
     "gcode_executable_produit": false,
-    "raison": "chaîne non validée de bout en bout : offsets XY réels, hauteurs de contact et de levée, obstacles physiques et état machine ne sont pas représentés dans ce banc d'essai. Aucun profil ne peut devenir « prêt machine » ici."
+    "raison": "chaîne non validée de bout en bout : offsets XY réels, hauteurs de contact et de levée, obstacles physiques et état machine ne sont pas représentés à cette étape du banc d'essai. Aucun profil ne peut devenir « prêt machine » tant que la calibration, les essais réels et leur revue n'ont pas eu lieu ; la sortie machine sera alors ouverte par un composant local séparé du site public, dans ce dépôt."
   },
   "source": {
     "caracteres": 327,

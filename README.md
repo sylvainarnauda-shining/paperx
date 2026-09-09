@@ -1,9 +1,9 @@
 # paperx
 
-Banc d'essai local **minimal** pour une seule question : est-ce qu'un texte
+Python ≥ 3.11 requis. Banc d'essai local **minimal** pour une seule question : est-ce qu'un texte
 français confié à une chaîne d'écriture mécanique ressort **exactement**
-identique ? Python 3.11, bibliothèque standard uniquement, aucune dépendance,
-aucun poids de modèle, aucun accès réseau ni imprimante.
+identique ? Bibliothèque standard uniquement, aucune dépendance, aucun poids de
+modèle, aucun accès réseau ni imprimante.
 
 Ce n'est pas un produit, pas une boutique, pas une interface web.
 
@@ -78,8 +78,9 @@ A4**, Montpellier centre, remise **à définir** (jamais supposée nulle).
 2. Ne jamais supprimer, remplacer ni translittérer un caractère : signaler.
 3. Ne jamais réduire le texte ou l'écriture pour faire tenir : signaler.
 4. Tout profil est versionné (`id@version`) et porte `measured` / `calibrated`.
-5. `MACHINE_OUTPUT_AVAILABLE` reste faux tant que la chaîne réelle n'est pas
-   validée ; ne pas le basculer depuis ce dépôt.
+5. `MACHINE_OUTPUT_AVAILABLE` reste faux tant que la calibration, les essais
+   réels et leur revue n'ont pas eu lieu ; le verrou sera alors levé par un
+   composant local séparé du site public, dans ce dépôt. Ne pas le basculer avant.
 6. Rien de binaire, rien de client, rien de secret dans le dépôt (voir
    `.gitignore` et `tests/test_depot_public.py`).
 7. Après toute modification : `python3 -m unittest discover -s tests -t .` puis

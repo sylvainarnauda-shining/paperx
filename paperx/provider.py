@@ -121,7 +121,8 @@ class PersonalizationProvider(abc.ABC):
     R4. `build_hand()` refuse un type d'échantillon non déclaré dans
         `requires_sample_kinds`.
     R5. Une écriture personnalisée ne peut pas être produite à partir d'un
-        gabarit générique synthétique.
+        gabarit générique synthétique — y compris si le fournisseur déclare
+        accepter ce type d'échantillon.
     R6. Les caractères non couverts sont exposés par `capabilities()` et doivent
         être signalés à l'appelant — jamais supprimés ni remplacés.
     R7. Si le fournisseur s'appuie sur des poids ou du code tiers, la licence
@@ -208,8 +209,22 @@ def check_conformance(provider: PersonalizationProvider) -> tuple[str, ...]:
             failures.append(f"R4 : {kind.value} refusé par {type(exc).__name__} inattendu")
         else:
             failures.append(f"R4 : {kind.value} accepté alors qu'il n'est pas déclaré requis")
-            if hand.is_personalized and kind is SampleKind.ECRITURE_GENERIQUE_SYNTHETIQUE:
-                failures.append("R5 : écriture « personnalisée » issue d'un gabarit générique")
+
+    # R5 : contrôlé systématiquement, même quand le gabarit générique est déclaré
+    # accepté — c'est précisément le cas où la revendication est trompeuse.
+    try:
+        hand = provider.build_hand(
+            Sample(SampleKind.ECRITURE_GENERIQUE_SYNTHETIQUE, "ref:gabarit-generique"))
+    except (InvalidSampleKind, PersonalizationUnavailable):
+        pass
+    except Exception as exc:  # noqa: BLE001
+        failures.append(
+            f"R5 : gabarit générique refusé par {type(exc).__name__} inattendu")
+    else:
+        if hand.is_personalized:
+            failures.append(
+                "R5 : écriture déclarée « personnalisée » produite à partir d'un "
+                "gabarit générique synthétique")
 
     if caps.is_personalized and not caps.supported_chars:
         failures.append("R6 : aucune couverture de caractères déclarée")

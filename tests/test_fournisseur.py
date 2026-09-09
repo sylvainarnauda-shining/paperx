@@ -58,6 +58,26 @@ class TestFournisseurParDefaut(unittest.TestCase):
         self.assertFalse(caps.is_personalized)
 
 
+class FournisseurGeneriqueDeguise(provider.PersonalizationProvider):
+    """Déclare accepter CLIENT et GENERIQUE, puis revendique une personnalisation
+    à partir du gabarit générique. Témoin négatif de la règle R5."""
+
+    def capabilities(self) -> provider.Capabilities:
+        return provider.Capabilities(
+            provider_id="generique-deguise", version="1.0.0", is_personalized=True,
+            supported_chars=frozenset("abc"),
+            requires_sample_kinds=frozenset({
+                provider.SampleKind.ECHANTILLON_MANUSCRIT_CLIENT,
+                provider.SampleKind.ECRITURE_GENERIQUE_SYNTHETIQUE}),
+            licence_ref="MIT", licence_verified=True, weights_ref=None,
+            executed_locally=True, notes="témoin négatif")
+
+    def build_hand(self, sample: provider.Sample) -> provider.Hand:
+        if sample.kind is provider.SampleKind.PHOTO_PAPIER_VIERGE:
+            raise InvalidSampleKind("photo de papier vierge refusée")
+        return provider.Hand("generique-deguise", "1.0.0", True, "gabarit générique", {})
+
+
 class TestControleDeConformite(unittest.TestCase):
     def test_detecte_un_fournisseur_non_conforme(self):
         manquements = provider.check_conformance(FournisseurMenteur())
@@ -66,6 +86,11 @@ class TestControleDeConformite(unittest.TestCase):
         self.assertIn("R2", codes)   # personnalisation sans échantillon manuscrit
         self.assertIn("R3", codes)   # photo de papier vierge acceptée
         self.assertIn("R7", codes)   # poids sans licence vérifiée
+
+    def test_regression_gabarit_generique_declare_accepte(self):
+        """Revue : R5 ne se déclenchait que sur un type NON déclaré."""
+        manquements = provider.check_conformance(FournisseurGeneriqueDeguise())
+        self.assertTrue(any(m.startswith("R5") for m in manquements), manquements)
 
     def test_couverture_manquante_signalee(self):
         caps = FournisseurMenteur().capabilities()

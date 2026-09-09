@@ -11,8 +11,9 @@ Ce dépôt ne produit AUCUN G-code exécutable et n'ouvre AUCUN accès imprimant
    mesurée, hauteur de plume et offset Z connus), toute demande de sortie
    machine lève `CalibrationRequired` ;
 2. même avec un profil calibré, l'émission d'un format exécutable n'est pas
-   implémentée ici, volontairement : elle relèvera d'un dépôt séparé, après
-   essais réels et revue matériel.
+   encore implémentée : elle relèvera d'un composant local séparé du site
+   public, à l'intérieur de ce dépôt, une fois la calibration et les essais
+   réels effectués et revus. Le refus vaut pour cette étape, pas pour toujours.
 
 La seule sortie autorisée est une **fiche de revue humaine**, non exécutable,
 destinée à la lecture.
@@ -63,9 +64,10 @@ def machine_output(traj: PageTrajectory, machine: MachineProfile,
         )
 
     raise NotImplementedError(
-        "émission machine volontairement non implémentée dans ce dépôt : "
-        "aucun format exécutable (G-code ou autre) n'y est produit, même avec un "
-        "profil calibré. Voir docs/LIMITES.md."
+        "émission machine non encore implémentée : aucun format exécutable "
+        "(G-code ou autre) n'est produit à cette étape, même avec un profil "
+        "calibré. Elle relèvera d'un composant local séparé du site public, dans "
+        "ce dépôt, après calibration, essais réels et revue. Voir docs/LIMITES.md."
     )
 
 

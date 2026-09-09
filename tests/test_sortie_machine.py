@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import pathlib
+import sys
 import unittest
 
 from paperx import emit, gate, machine, paper, strokes, validator
@@ -49,6 +50,26 @@ class TestRefusSortieMachine(unittest.TestCase):
             self.assertNotIn(commande, fiche)
 
 
+class TestCadrageDuVerrou(unittest.TestCase):
+    """Le verrou est fermé à cette étape ; il n'exile pas la suite ailleurs."""
+
+    def _textes(self):
+        return (gate.__doc__ or "") + gate.GATE_REASON + (emit.__doc__ or "") + \
+            (emit.machine_output.__doc__ or "") + \
+            pathlib.Path("docs/LIMITES.md").read_text(encoding="utf-8")
+
+    def test_aucun_renvoi_vers_un_autre_depot(self):
+        for formule in ("dépôt séparé", "dépôt distinct", "autre dépôt"):
+            self.assertNotIn(formule, self._textes(),
+                             "paperx reste la source de vérité")
+
+    def test_verrou_presente_comme_une_etape(self):
+        textes = self._textes()
+        self.assertIn("à cette étape", textes)
+        self.assertIn("composant local séparé du site public", textes)
+        self.assertIn("calibration", textes)
+
+
 class TestAucunGcodeNiAccesMachine(unittest.TestCase):
     def _sources(self):
         return sorted(PAQUET.glob("*.py"))
@@ -74,9 +95,10 @@ class TestAucunGcodeNiAccesMachine(unittest.TestCase):
             for motif in motifs:
                 self.assertNotIn(motif, contenu, f"{chemin} contient {motif!r}")
 
+    @unittest.skipUnless(hasattr(sys, "stdlib_module_names"),
+                         "sys.stdlib_module_names requiert Python >= 3.10 "
+                         "(ce dépôt cible Python >= 3.11, voir README)")
     def test_paquet_en_bibliotheque_standard_uniquement(self):
-        import sys
-
         autorises = set(sys.stdlib_module_names) | {"paperx"}
         for chemin in self._sources():
             arbre = ast.parse(chemin.read_text(encoding="utf-8"))

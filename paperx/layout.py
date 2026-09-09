@@ -96,6 +96,11 @@ class LayoutMetrics:
     def usable_width_mm(self) -> float:
         return self.right_limit_mm - self.left_mm
 
+    @property
+    def ink_band_mm(self) -> float:
+        """Hauteur d'encre d'une ligne : l'interligne ne peut pas être inférieur."""
+        return self.ink_above_baseline_mm + self.ink_below_baseline_mm
+
     def as_dict(self) -> dict:
         return {
             "bande_utile_mm": [round(self.left_mm, 3), round(self.right_limit_mm, 3)],
@@ -104,6 +109,7 @@ class LayoutMetrics:
             "reserve_encre_droite_mm": round(self.reserve_right_mm, 3),
             "encre_au_dessus_ligne_base_mm": round(self.ink_above_baseline_mm, 3),
             "encre_sous_ligne_base_mm": round(self.ink_below_baseline_mm, 3),
+            "bande_encre_ligne_mm": round(self.ink_band_mm, 3),
             "lignes_par_page": self.lines_per_page,
         }
 
@@ -222,6 +228,15 @@ def check_geometry(paper: PaperProfile) -> LayoutMetrics:
             f"({paper.first_baseline_mm} mm) laisserait l'encre haute "
             f"({m.ink_above_baseline_mm:.2f} mm au-dessus) franchir la marge haute "
             f"({paper.margin_top_mm} mm). Aucun rattrapage n'est appliqué."
+        )
+    bande_encre = m.ink_above_baseline_mm + m.ink_below_baseline_mm
+    if paper.line_height_mm < bande_encre:
+        raise LayoutError(
+            f"profil {paper.ref()} : interligne {paper.line_height_mm} mm inférieur à "
+            f"la bande d'encre de l'écriture ({bande_encre:.2f} mm = "
+            f"{m.ink_above_baseline_mm:.2f} au-dessus + {m.ink_below_baseline_mm:.2f} "
+            "sous la ligne de base). Les lignes se chevaucheraient ; aucune réduction "
+            "de l'écriture n'est appliquée pour les faire tenir."
         )
     if m.usable_width_mm <= 0:
         raise LayoutError(

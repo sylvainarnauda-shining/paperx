@@ -70,6 +70,33 @@ class TestGeometriePage(unittest.TestCase):
             layout.paginate(textsource.from_bytes(b"A"),
                             dc.replace(paper.DEMO_A4, first_baseline_mm=22.0))
 
+    def test_regression_interligne_incompatible_avec_la_bande_dencre(self):
+        """Revue : line_height_mm=0.1 était accepté malgré 5,85 mm d'encre par ligne."""
+        metriques = layout.metrics_for(paper.DEMO_A4)
+        self.assertGreater(metriques.ink_band_mm, 5.0)
+        self.assertGreaterEqual(paper.DEMO_A4.line_height_mm, metriques.ink_band_mm)
+        serre = dc.replace(paper.DEMO_A4, line_height_mm=0.1)
+        with self.assertRaises(LayoutError) as ctx:
+            layout.paginate(textsource.from_bytes(b"gj\ngj"), serre)
+        self.assertIn("interligne", str(ctx.exception))
+        # juste sous la bande d'encre : encore refusé ; juste au-dessus : accepté
+        with self.assertRaises(LayoutError):
+            layout.paginate(textsource.from_bytes(b"gj\ngj"),
+                            dc.replace(paper.DEMO_A4,
+                                       line_height_mm=metriques.ink_band_mm - 0.01))
+        limite = dc.replace(paper.DEMO_A4, line_height_mm=metriques.ink_band_mm)
+        resultat = layout.paginate(textsource.from_bytes(b"gj\ngj"), limite)
+        self.assertEqual(resultat.reconstruct(), "gj\ngj")
+
+    def test_lignes_ne_se_chevauchent_pas(self):
+        src = textsource.load("samples/texte_demo_fr.txt")
+        resultat = layout.paginate(src, paper.DEMO_A4)
+        bande = resultat.metrics
+        for page in resultat.pages:
+            for precedente, suivante in zip(page.lines, page.lines[1:]):
+                ecart = suivante.baseline_y_mm - precedente.baseline_y_mm
+                self.assertGreaterEqual(ecart + 1e-9, bande.ink_band_mm)
+
     def test_regression_ligne_de_200_espaces(self):
         """Revue : 200 espaces puis 'b' produisaient une ligne de 300 mm."""
         text = " " * 200 + "b"

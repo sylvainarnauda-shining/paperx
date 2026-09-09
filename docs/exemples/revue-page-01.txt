@@ -14,7 +14,7 @@ trajectoire valide  : True
 prêt machine        : False
 
 constats :
-  [bloquant_machine] CHAINE_NON_VALIDEE × 1 — chaîne non validée de bout en bout : offsets XY réels, hauteurs de contact et de levée, obstacles physiques et état machine ne sont pas représentés dans ce banc d'essai. Aucun profil ne peut devenir « prêt machine » ici.
+  [bloquant_machine] CHAINE_NON_VALIDEE × 1 — chaîne non validée de bout en bout : offsets XY réels, hauteurs de contact et de levée, obstacles physiques et état machine ne sont pas représentés à cette étape du banc d'essai. Aucun profil ne peut devenir « prêt machine » tant que la calibration, les essais réels et leur revue n'ont pas eu lieu ; la sortie machine sera alors ouverte par un composant local séparé du site public, dans ce dépôt.
   [bloquant_machine] HAUTEUR_PLUME_INCONNUE × 1 — hauteur de plume et/ou offset Z inconnus : rien n'est deviné
   [bloquant_machine] MACHINE_NON_CALIBREE × 1 — profil machine non calibré : aucune sortie machine autorisée
   [bloquant_machine] PAPIER_NON_MESURE × 1 — profil papier de démonstration, non mesuré sur un papier réel
