@@ -123,6 +123,9 @@ class LayoutResult:
     events: tuple[LayoutEvent, ...]
     coverage: charset.CoverageReport
     metrics: LayoutMetrics
+    #: Écriture réellement employée : module `synthetic_hand` (défaut) ou
+    #: `paperx.hands.HandStyle`. Les trajectoires DOIVENT reprendre celle-ci.
+    hand: object = synthetic_hand
 
     @property
     def lines(self) -> tuple[Line, ...]:
@@ -179,8 +182,8 @@ def _atoms(text: str) -> list[tuple[str, int, int]]:
     return out
 
 
-def _width_mm(text: str, start: int, end: int, em_mm: float) -> float:
-    return sum(synthetic_hand.advance_of(text[k]) for k in range(start, end)) * em_mm
+def _width_mm(text: str, start: int, end: int, em_mm: float, hand=synthetic_hand) -> float:
+    return sum(hand.advance_of(text[k]) for k in range(start, end)) * em_mm
 
 
 class _LineBuilder:
@@ -196,14 +199,14 @@ class _LineBuilder:
         return bool(self.spans)
 
 
-def metrics_for(paper: PaperProfile) -> LayoutMetrics:
+def metrics_for(paper: PaperProfile, hand=synthetic_hand) -> LayoutMetrics:
     """Bande utile pour l'écriture générique synthétique, réserves comprises."""
     em = paper.font_size_mm
     half_pen = paper.pen_width_mm / 2.0
-    reserve_left = synthetic_hand.ink_reserve_left_em() * em + half_pen
-    reserve_right = synthetic_hand.ink_reserve_right_em() * em + half_pen
-    ink_above = synthetic_hand.ink_above_baseline_em() * em + half_pen
-    ink_below = synthetic_hand.ink_below_baseline_em() * em + half_pen
+    reserve_left = hand.ink_reserve_left_em() * em + half_pen
+    reserve_right = hand.ink_reserve_right_em() * em + half_pen
+    ink_above = hand.ink_above_baseline_em() * em + half_pen
+    ink_below = hand.ink_below_baseline_em() * em + half_pen
     return LayoutMetrics(
         left_mm=paper.margin_left_mm + reserve_left,
         right_limit_mm=paper.width_mm - paper.margin_right_mm - reserve_right,
@@ -215,13 +218,17 @@ def metrics_for(paper: PaperProfile) -> LayoutMetrics:
     )
 
 
-def check_geometry(paper: PaperProfile) -> LayoutMetrics:
+def check_geometry(paper: PaperProfile, hand=synthetic_hand) -> LayoutMetrics:
     """Refuse un profil papier géométriquement incompatible avec l'écriture."""
     problems = paper.numeric_problems()
     if problems:
         raise LayoutError(f"profil papier {paper.ref()} invalide : " + " ; ".join(problems))
+    style_problems = getattr(hand, "numeric_problems", tuple)()
+    if style_problems:
+        raise LayoutError(
+            f"écriture {hand.hand_ref()} invalide : " + " ; ".join(style_problems))
 
-    m = metrics_for(paper)
+    m = metrics_for(paper, hand)
     if paper.first_baseline_mm - m.ink_above_baseline_mm < paper.margin_top_mm:
         raise LayoutError(
             f"profil {paper.ref()} : la première ligne de base "
@@ -251,13 +258,13 @@ def check_geometry(paper: PaperProfile) -> LayoutMetrics:
     return m
 
 
-def paginate(source: SourceText, paper: PaperProfile) -> LayoutResult:
-    metrics = check_geometry(paper)
+def paginate(source: SourceText, paper: PaperProfile, hand=synthetic_hand) -> LayoutResult:
+    metrics = check_geometry(paper, hand)
     text = source.text
     em = paper.font_size_mm
     left = metrics.left_mm
     right_limit = metrics.right_limit_mm
-    supported = synthetic_hand.supported_chars()
+    supported = hand.supported_chars()
 
     events: list[LayoutEvent] = []
     built: list[_LineBuilder] = []
@@ -273,7 +280,7 @@ def paginate(source: SourceText, paper: PaperProfile) -> LayoutResult:
         x0 = current.cursor_x
         for k in range(start, end):
             ch = text[k]
-            adv = synthetic_hand.advance_of(ch) * em
+            adv = hand.advance_of(ch) * em
             current.chars.append((k, ch, current.cursor_x, adv, ch in supported))
             current.cursor_x += adv
         current.spans.append(PlacedSpan(KIND_GLYPHS, start, end, x0, current.cursor_x - x0))
@@ -287,7 +294,7 @@ def paginate(source: SourceText, paper: PaperProfile) -> LayoutResult:
         """
         k, x, x0 = start, current.cursor_x, current.cursor_x
         while k < end:
-            adv = synthetic_hand.advance_of(text[k]) * em
+            adv = hand.advance_of(text[k]) * em
             if x + adv > right_limit:
                 break
             x += adv
@@ -319,8 +326,8 @@ def paginate(source: SourceText, paper: PaperProfile) -> LayoutResult:
             continue
 
         # kind == "wd"
-        word_w = _width_mm(text, start, end, em)
-        space_w = _width_mm(text, *pending_space, em) if pending_space else 0.0
+        word_w = _width_mm(text, start, end, em, hand)
+        space_w = _width_mm(text, *pending_space, em, hand) if pending_space else 0.0
 
         if current.has_content and current.cursor_x + space_w + word_w > right_limit:
             if pending_space is not None:
@@ -340,7 +347,7 @@ def paginate(source: SourceText, paper: PaperProfile) -> LayoutResult:
             fits_end = cursor
             x = current.cursor_x
             while fits_end < end:
-                adv = synthetic_hand.advance_of(text[fits_end]) * em
+                adv = hand.advance_of(text[fits_end]) * em
                 if x + adv > right_limit:
                     break
                 x += adv
@@ -398,7 +405,7 @@ def paginate(source: SourceText, paper: PaperProfile) -> LayoutResult:
     if lines_acc:
         pages.append(Page(lines_acc[-1].page_number, tuple(lines_acc)))
 
-    coverage = charset.scan(text)
+    coverage = charset.scan(text, hand)
     for unsupported in coverage.unsupported:
         events.append(LayoutEvent(
             "caractere_non_pris_en_charge", unsupported.first_index,
@@ -409,9 +416,10 @@ def paginate(source: SourceText, paper: PaperProfile) -> LayoutResult:
     return LayoutResult(
         source=source,
         paper=paper,
-        hand_ref=synthetic_hand.hand_ref(),
+        hand_ref=hand.hand_ref(),
         pages=tuple(pages),
         events=tuple(events),
         coverage=coverage,
         metrics=metrics,
+        hand=hand,
     )

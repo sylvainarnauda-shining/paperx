@@ -14,7 +14,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from . import numeric as num
-from . import synthetic_hand
 from .layout import LayoutResult
 from .paper import PaperProfile
 from .errors import ProfileError
@@ -173,6 +172,7 @@ class PageTrajectory:
 def build_page(layout: LayoutResult, page_number: int,
                speeds: SpeedProfile = DEMO_SPEEDS) -> PageTrajectory:
     paper: PaperProfile = layout.paper
+    hand = layout.hand
     em = paper.font_size_mm
     page = next(p for p in layout.pages if p.number == page_number)
 
@@ -188,10 +188,10 @@ def build_page(layout: LayoutResult, page_number: int,
                     x_mm=placed.x_mm,
                     baseline_y_mm=placed.baseline_y_mm,
                     width_mm=placed.advance_mm,
-                    height_mm=synthetic_hand.CAP_HEIGHT * em,
+                    height_mm=hand.CAP_HEIGHT * em,
                 ))
                 continue
-            glyph = synthetic_hand.GLYPHS.get(placed.char)
+            glyph = hand.GLYPHS.get(placed.char)
             if glyph is None:      # espaces : avance seule, aucun trait
                 continue
             for gs in glyph.strokes:
