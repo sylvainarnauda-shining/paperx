@@ -1,0 +1,19 @@
+Note du 9 septembre, écrite d'un trait pour l'expérience
+
+Hier, à Montpellier, j'ai relu une lettre reçue en 1998 : l'encre avait viré au
+brun, mais chaque « e » gardait sa boucle trop ouverte, ce défaut têtu qui suffit
+à reconnaître une main entre mille. Personne n'apprend cela ; cela s'installe.
+
+Ce texte n'a jamais servi à régler quoi que ce soit dans ce dépôt. Il est écrit
+maintenant, exprès, pour vérifier une chose : est-ce qu'un texte que le banc
+d'essai n'a jamais vu ressort intact ? On y a glissé ce qu'il faut pour que la
+question morde — des accents partout (âcre, hêtre, coïncidence, aiguë, sûr,
+naïf), des cédilles (façade, reçu, glaçon), une ligature (le cœur, les œufs,
+un vœu), des guillemets français « comme ceci », un tiret cadratin — celui-ci —
+et des espaces insécables avant les points-virgules ; ainsi que 3 chiffres,
+2 majuscules accentuées (Étretat, Ãtre n'existe pas mais À oui) et 100 % de
+volonté de ne rien laisser passer.
+
+Deux signes sont absents de l'écriture générique : le symbole € et l'idéogramme
+漢. Ils sont ici volontairement. S'ils disparaissent du texte reconstruit, ou
+s'ils sont remplacés par autre chose, l'expérience échoue et il faut le dire.
