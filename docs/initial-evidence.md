@@ -11,10 +11,10 @@ Objectif inchangé : texte exact + photo d'écriture autorisée → nouveau text
 | Source primaire | Constat | Décision |
 |---|---|---|
 | [KEV_3DP 3011022](https://makerworld.com/en/models/3011022-p1-x1-pen-plotter-module) | P1S déclarée compatible ; Stabilo, prise de 7,8 mm selon l'auteur ; profil annoncé 28 min / 12 g sans supports ; collision avant droit rapportée en commentaire | Simple piste mécanique, pas une validation bille. Standard Digital File License : redistribution et utilisation payante sans permission interdites |
-| [P1S/P1P 1382919](https://makerworld.com/en/models/1382919-p1s-p1p-pen-plotter-attachment) | Piste Stabilo avec ressort selon indexation secondaire ; page primaire non revue à ce stade | Ne pas considérer comme support bille validé ; droits à confirmer directement |
+| [P1S/P1P 1382919](https://makerworld.com/en/models/1382919-p1s-p1p-pen-plotter-attachment) | Stabilo avec ressort ; P1S/P1P, X1C explicitement exclue ; profil annoncé 1,5 h sans supports ; remplacé par 3011022 | Pas de validation bille ; Standard Digital File License restrictive identique au modèle récent |
 | [Falu 2029113](https://makerworld.com/en/models/2029113-modular-system-for-a1-p1-x1-series) | Ressort et réglage de profondeur ; Stabilo/POSCA ; obstacles explicités ; licence Exclusive et adhésion commerciale proposée | Intérêt pour la pression, mais adaptation bille et permission commerciale nécessaires. Pas de redistribution hors MakerWorld |
 
-Les pages KEV récent et Falu ont été lues dans le navigateur. Ne pas copier leurs fichiers dans ce dépôt. La gratuité de téléchargement ne valide pas le droit d'exploitation commerciale. Aucun abonnement souscrit.
+Les trois pages ont été lues dans le navigateur. Ne pas copier leurs fichiers dans ce dépôt. La gratuité de téléchargement ne valide pas le droit d'exploitation commerciale. Aucun abonnement souscrit.
 
 Le [guide rebelthor](https://github.com/rebelthor/bambu-lab-pen-plotter) et les instructions Falu ne sont pas une séquence Paperx : ils contiennent chauffe, extrusion et changements de sécurités. Le démarrage Falu comporte notamment une désactivation des fins de course logicielles, des déplacements au-delà de 256 et des contacts buse. Ne pas l'exécuter sur notre montage.
 
