@@ -18,6 +18,10 @@ Les trois pages ont été lues dans le navigateur. Ne pas copier leurs fichiers 
 
 Le [guide rebelthor](https://github.com/rebelthor/bambu-lab-pen-plotter) et les instructions Falu ne sont pas une séquence Paperx : ils contiennent chauffe, extrusion et changements de sécurités. Le démarrage Falu comporte notamment une désactivation des fins de course logicielles, des déplacements au-delà de 256 et des contacts buse. Ne pas l'exécuter sur notre montage.
 
+Piste mécanique prioritaire, sous conditions : Falu avec [tube paramétrique 2956018](https://makerworld.com/fr/models/2956018-improved-pen-plotter-tube-for-umts-parametric). Source primaire revue : diamètre personnalisable, impression verticale annoncée sans supports, profils de plusieurs diamètres. Cela facilite une adaptation à un stylo existant, sans prouver sa tenue, la course du ressort ou les dégagements. Le tube porte aussi une licence Exclusive : résoudre les droits du système et du remix avant usage commercial. Aucun diamètre sélectionné sans mesure du stylo.
+
+[3DWriter sur Hackaday](https://hackaday.io/project/19357-3dwriter) confirme un Bic quatre couleurs et des polices Hershey à traits ; cible Reprap i3, pas preuve P1S. Son [dépôt](https://github.com/boy1dr/3DWriter) ne présente pas de licence racine détectée. La vidéo `yK_YGwMRR40` est liée depuis cette source ; disponibilité complète de `SWDUg1BA8Pk` non vérifiée (lecture limitée), aucune attribution retenue.
+
 ## A4 : contrainte conservée
 
 210 × 297 mm ne tient pas intégralement dans un carré 256 × 256, même tourné. Une zone textuelle alignée pourrait tenir avec au moins 41 mm de marges haut/bas cumulées, avant prise en compte du support et des obstacles. Cela ne prouve pas que le papier peut être posé sans collision. La zone exclue publiée par Falu laisse un rectangle théorique 210 × 203 mm dans son repère de 258 mm ; ce n'est ni notre calibration ni une page A4 complète.
