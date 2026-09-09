@@ -2,6 +2,10 @@
 out/
 *.svg.tmp
 
+# --- Données locales du site (texte, photos, commandes) : jamais versionnées ---
+.paperx-web/
+paperx-web-data/
+
 # --- Python ---
 __pycache__/
 *.py[cod]

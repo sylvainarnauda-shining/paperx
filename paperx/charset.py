@@ -81,8 +81,8 @@ def charset_ref() -> str:
     return f"{CHARSET_ID}@{CHARSET_VERSION}"
 
 
-def is_supported(char: str) -> bool:
-    return char in synthetic_hand.supported_chars()
+def is_supported(char: str, hand=synthetic_hand) -> bool:
+    return char in hand.supported_chars()
 
 
 def _unicode_name(char: str) -> str:
@@ -92,9 +92,13 @@ def _unicode_name(char: str) -> str:
         return "SANS NOM UNICODE"
 
 
-def scan(text: str) -> CoverageReport:
-    """Inventorie les caractères non pris en charge, sans modifier le texte."""
-    supported = synthetic_hand.supported_chars()
+def scan(text: str, hand=synthetic_hand) -> CoverageReport:
+    """Inventorie les caractères non pris en charge, sans modifier le texte.
+
+    `hand` est l'écriture consultée (module `synthetic_hand` par défaut, ou un
+    `paperx.hands.HandStyle`) : la couverture dépend du gabarit réellement utilisé.
+    """
+    supported = hand.supported_chars()
     positions: dict[str, list[int]] = {}
     counts: Counter[str] = Counter()
     for index, char in enumerate(text):
@@ -118,14 +122,14 @@ def scan(text: str) -> CoverageReport:
     total_unsupported = sum(u.count for u in unsupported)
     return CoverageReport(
         charset_ref=charset_ref(),
-        hand_ref=synthetic_hand.hand_ref(),
+        hand_ref=hand.hand_ref(),
         total_chars=len(text),
         supported_chars=len(text) - total_unsupported,
         unsupported=unsupported,
     )
 
 
-def missing_from_french_baseline() -> tuple[str, ...]:
+def missing_from_french_baseline(hand=synthetic_hand) -> tuple[str, ...]:
     """Caractères du socle français attendu qui ne seraient pas couverts."""
-    supported = synthetic_hand.supported_chars()
+    supported = hand.supported_chars()
     return tuple(sorted({c for c in FRENCH_REQUIRED if c not in supported}, key=ord))

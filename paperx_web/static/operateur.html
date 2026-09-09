@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>paperx — espace opérateur</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="operateur">
+
+<header class="bandeau bandeau-operateur">
+  <div class="bandeau-titre">
+    <span class="marque">paperx</span>
+    <span class="marque-suite">espace opérateur</span>
+  </div>
+  <p class="bandeau-etat">Données internes — coûts d'atelier, durées estimées,
+    profils et constats du validateur. Ne pas montrer au client.</p>
+</header>
+
+<section class="verrou" id="verrou">
+  <h1>Clé opérateur</h1>
+  <p>Elle est imprimée dans le terminal au démarrage du serveur. Aucune page ne la
+    donne : recopiez-la.</p>
+  <div class="ligne-outils">
+    <label class="champ-label" for="cle">Clé</label>
+    <input type="password" id="cle" autocomplete="off" spellcheck="false">
+    <button type="button" class="bouton bouton-plein" id="deverrouiller">Ouvrir</button>
+  </div>
+  <p class="erreur" id="erreur-cle" hidden></p>
+</section>
+
+<main class="atelier" id="atelier" hidden>
+
+  <section class="sequence">
+
+    <article class="etape">
+      <h2><span class="etape-num">file</span> Commandes</h2>
+      <p class="aide">Chaque commande porte des artefacts <strong>figés à sa
+        création</strong> : changer un profil plus tard ne réécrit pas une commande
+        passée.</p>
+      <div class="ligne-outils">
+        <button type="button" class="bouton bouton-fin" id="rafraichir">Rafraîchir</button>
+        <span class="compteur" id="compteur-file">—</span>
+      </div>
+      <p class="erreur" id="erreur-file" hidden></p>
+      <ul class="commandes" id="commandes"></ul>
+    </article>
+
+    <article class="etape">
+      <h2><span class="etape-num">essai</span> Chiffrer un travail</h2>
+      <p class="aide">Composition complète avec durées décomposées et coûts d'atelier.
+        Rien de ceci n'est envoyé à l'espace client.</p>
+
+      <label class="champ-label" for="texte">Texte</label>
+      <textarea id="texte" rows="6" spellcheck="false"></textarea>
+
+      <div class="grille-couts">
+        <label>Style
+          <select id="style"></select></label>
+        <label>Impression
+          <select id="impression">
+            <option value="recto">recto</option>
+            <option value="recto_verso">recto-verso</option>
+          </select></label>
+      </div>
+
+      <h3>Coûts d'atelier <span class="jeton jeton-ambre">hypothèses</span></h3>
+      <p class="mention">Aucune de ces durées n'a été chronométrée. Laisser vide
+        maintient le supplément à « à établir » — jamais à zéro.</p>
+      <div class="grille-couts">
+        <label>Retournement <span class="unite">s</span>
+          <input type="number" id="cout-retournement" min="0" step="1" placeholder="—"></label>
+        <label>Recalage <span class="unite">s</span>
+          <input type="number" id="cout-recalage" min="0" step="1" placeholder="—"></label>
+        <label>Contrôle alignement <span class="unite">s</span>
+          <input type="number" id="cout-controle" min="0" step="1" placeholder="—"></label>
+        <label>Taux horaire <span class="unite">centimes</span>
+          <input type="number" id="cout-taux" min="0" step="1" placeholder="—"></label>
+        <label>Taux de ratés <span class="unite">0 à 1</span>
+          <input type="number" id="cout-rates" min="0" max="1" step="0.01" placeholder="—"></label>
+      </div>
+
+      <div class="ligne-outils">
+        <button type="button" class="bouton bouton-plein" id="chiffrer">Chiffrer</button>
+        <button type="button" class="bouton bouton-fin" id="demander-machine">
+          Demander la sortie machine</button>
+      </div>
+      <p class="erreur" id="erreur-chiffrage" hidden></p>
+
+      <div id="resultat" hidden>
+        <h3>Devis interne</h3>
+        <dl class="valeurs valeurs-grille" id="devis-interne"></dl>
+        <h3>Temps estimé <span class="jeton jeton-ambre">non mesuré</span></h3>
+        <dl class="valeurs valeurs-grille" id="temps"></dl>
+        <h3>Page</h3>
+        <dl class="valeurs valeurs-grille" id="metriques-page"></dl>
+        <h3>Profils figés</h3>
+        <dl class="valeurs valeurs-grille" id="profils"></dl>
+        <h3>Constats du validateur</h3>
+        <ul class="liste-refus" id="constats"></ul>
+        <h3>Ce qui n'est pas connu de la machine</h3>
+        <dl class="valeurs valeurs-grille" id="offsets"></dl>
+        <h3>À mesurer par essais physiques</h3>
+        <p class="mention" id="note-essais"></p>
+        <ul class="liste-essais" id="essais"></ul>
+      </div>
+      <div class="encadre encadre-rouge" id="refus-machine" hidden>
+        <p class="mono" id="refus-machine-detail"></p>
+      </div>
+    </article>
+  </section>
+</main>
+
+<script src="/static/operateur.js"></script>
+</body>
+</html>

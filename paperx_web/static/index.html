@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>paperx — faire écrire un texte à la main</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<header class="bandeau">
+  <div class="bandeau-titre">
+    <span class="marque">paperx</span>
+    <span class="marque-suite">Montpellier centre</span>
+  </div>
+  <p class="bandeau-etat" id="bandeau-etat">Simulation — rien n'est écrit sur du papier.</p>
+</header>
+
+<main class="atelier">
+
+  <section class="sequence" aria-label="Votre commande">
+
+    <article class="etape" id="etape-texte">
+      <h2><span class="etape-num">étape 1</span> Votre texte</h2>
+      <p class="aide">Il sera repris exactement tel que vous l'écrivez ici : accents,
+        ponctuation et espaces compris.</p>
+
+      <label class="champ-label" for="texte">Texte à écrire</label>
+      <textarea id="texte" rows="9" spellcheck="false"
+        placeholder="Collez ou saisissez votre texte…"></textarea>
+
+      <div class="ligne-outils">
+        <label class="bouton bouton-fin" for="fichier-texte">Importer un .txt</label>
+        <input type="file" id="fichier-texte" accept=".txt,text/plain" hidden>
+        <button type="button" class="bouton bouton-fin" id="exemples-suivant">
+          Texte d'exemple</button>
+        <span class="compteur" id="compteur-texte">0 caractère</span>
+      </div>
+      <p class="mention" id="mention-exemple"></p>
+
+      <p class="resume" id="resume-texte" hidden></p>
+      <ul class="signalements" id="signalements" hidden></ul>
+      <details class="tech" id="tech-texte" hidden>
+        <summary>Vérifier que mon texte est intact</summary>
+        <dl class="valeurs" id="valeurs-texte"></dl>
+        <p class="mention">Cette empreinte change si un seul caractère change.
+          Elle figure aussi dans votre dossier.</p>
+      </details>
+    </article>
+
+    <article class="etape" id="etape-ecriture">
+      <h2><span class="etape-num">étape 2</span> L'écriture</h2>
+
+      <fieldset class="choix">
+        <legend class="visuellement-cache">Mode d'écriture</legend>
+        <label class="carte-choix">
+          <input type="radio" name="mode-ecriture" value="demo" checked>
+          <span class="carte-titre">Écriture de démonstration</span>
+          <span class="carte-texte">Une écriture neutre, dessinée pour ce banc d'essai.
+            Elle ne reproduit l'écriture de personne.</span>
+        </label>
+        <label class="carte-choix">
+          <input type="radio" name="mode-ecriture" value="personnalise">
+          <span class="carte-titre">Mon écriture
+            <span class="jeton jeton-ambre">pas encore possible</span></span>
+          <span class="carte-texte">Vous pouvez déposer une photo dès maintenant. Elle
+            reste sur cet ordinateur et votre commande attend : rien d'autre ne sera
+            présenté comme votre écriture.</span>
+        </label>
+      </fieldset>
+
+      <div id="bloc-styles">
+        <label class="champ-label" for="style">Style</label>
+        <select id="style"></select>
+      </div>
+
+      <div id="bloc-echantillon" hidden>
+        <p class="encadre encadre-ambre">Déposer une photo ne fabrique pas votre
+          écriture : cette étape n'existe pas encore. La photo sert à la préparer.</p>
+        <label class="case">
+          <input type="checkbox" id="consentement">
+          <span>J'accepte que ma photo soit conservée sur cet ordinateur jusqu'à ce
+            que je demande sa suppression.</span>
+        </label>
+        <div class="ligne-outils">
+          <label class="bouton bouton-fin" id="label-photo" for="fichier-photo"
+            aria-disabled="true">Déposer une photo</label>
+          <input type="file" id="fichier-photo" accept="image/jpeg,image/png" hidden disabled>
+          <span class="compteur" id="etat-photo">cochez la case pour déposer</span>
+        </div>
+        <p class="mention" id="limites-depot"></p>
+        <p class="resume" id="resume-photo" hidden></p>
+      </div>
+    </article>
+
+    <article class="etape" id="etape-impression">
+      <h2><span class="etape-num">étape 3</span> Recto ou recto-verso</h2>
+      <fieldset class="choix choix-serre">
+        <legend class="visuellement-cache">Recto ou recto-verso</legend>
+        <label class="carte-choix">
+          <input type="radio" name="mode-impression" value="recto" checked>
+          <span class="carte-titre">Recto seul</span>
+          <span class="carte-texte">Une page par feuille.</span>
+        </label>
+        <label class="carte-choix">
+          <input type="radio" name="mode-impression" value="recto_verso">
+          <span class="carte-titre">Recto-verso</span>
+          <span class="carte-texte">Deux pages par feuille : moitié moins de papier.</span>
+        </label>
+      </fieldset>
+      <p class="encadre" id="note-retournement" hidden>
+        Le retournement se fait à la main : quelqu'un retourne la feuille, la recale
+        et vérifie l'alignement avant de reprendre.</p>
+    </article>
+
+    <article class="etape" id="etape-devis">
+      <h2><span class="etape-num">étape 4</span> Votre devis</h2>
+      <button type="button" class="bouton bouton-plein" id="composer">
+        Calculer le devis</button>
+      <p class="erreur" id="erreur-composer" hidden></p>
+
+      <div id="resultat-devis" hidden>
+        <table class="devis">
+          <tbody>
+            <tr><th scope="row">Pages écrites à la main</th>
+                <td id="devis-pages">—</td></tr>
+            <tr><th scope="row">Feuilles de papier</th>
+                <td id="devis-feuilles">—</td></tr>
+            <tr><th scope="row">Prix par page écrite</th>
+                <td id="devis-unitaire">—</td></tr>
+            <tr><th scope="row">Sous-total</th>
+                <td id="devis-base">—</td></tr>
+            <tr class="ligne-supplement" id="ligne-supplement" hidden>
+                <th scope="row">Supplément retournement</th>
+                <td id="devis-supplement">—</td></tr>
+            <tr class="ligne-total"><th scope="row">Total</th>
+                <td id="devis-total">—</td></tr>
+          </tbody>
+        </table>
+        <p class="mention" id="devis-note"></p>
+      </div>
+    </article>
+
+    <article class="etape" id="etape-dossier">
+      <h2><span class="etape-num">étape 5</span> Votre commande</h2>
+      <p class="aide">Enregistrer la commande crée un dossier à relire : votre texte,
+        les pages simulées et votre devis. Rien n'est facturé, rien n'est envoyé.</p>
+
+      <div class="encadre encadre-rouge" id="bloc-simulation">
+        <p id="refus-resume">Ce site simule l'écriture. Il ne lance aucune écriture
+          réelle.</p>
+        <ul class="liste-refus" id="liste-refus"></ul>
+      </div>
+
+      <div class="ligne-outils">
+        <button type="button" class="bouton bouton-plein" id="creer-commande" disabled>
+          Enregistrer ma commande</button>
+      </div>
+      <p class="erreur" id="erreur-commande" hidden></p>
+
+      <div id="file-client">
+        <h3>Mes commandes <span class="compteur" id="compteur-file"></span></h3>
+        <p class="aide">Elles restent sur cet ordinateur. Vous pouvez tout supprimer
+          quand vous voulez.</p>
+        <ul class="commandes" id="commandes"></ul>
+      </div>
+    </article>
+  </section>
+
+  <aside class="instrument" aria-label="Simulation du tracé">
+    <div class="onglets" role="tablist">
+      <button type="button" role="tab" class="onglet actif" id="onglet-apercu"
+        aria-selected="true" aria-controls="panneau-apercu">Pages</button>
+      <button type="button" role="tab" class="onglet" id="onglet-simulation"
+        aria-selected="false" aria-controls="panneau-simulation">Tracé animé</button>
+    </div>
+
+    <p class="bandeau-simulation">Simulation du tracé — pas une image du résultat final.</p>
+
+    <section class="panneau" id="panneau-apercu" role="tabpanel"
+      aria-labelledby="onglet-apercu">
+      <div class="vide" id="apercu-vide">
+        <p>Calculez le devis pour voir la simulation du tracé, page par page.</p>
+      </div>
+      <div class="page-svg" id="page-svg" hidden></div>
+      <div class="nav-pages" id="nav-apercu" hidden>
+        <button type="button" class="bouton bouton-fin" id="apercu-prec">Page précédente</button>
+        <span class="mono" id="apercu-position">1 / 1</span>
+        <button type="button" class="bouton bouton-fin" id="apercu-suiv">Page suivante</button>
+      </div>
+    </section>
+
+    <section class="panneau" id="panneau-simulation" role="tabpanel"
+      aria-labelledby="onglet-simulation" hidden>
+      <div class="vide" id="simulation-vide">
+        <p>Calculez le devis pour lancer le tracé animé.</p>
+      </div>
+
+      <div id="simulation-contenu" hidden>
+        <div class="cadre-canvas">
+          <canvas id="canvas-simulation" width="840" height="1188"
+            aria-label="Tracé simulé sur une feuille A4"></canvas>
+        </div>
+
+        <ul class="legende">
+          <li><span class="ech ech-trace"></span>stylo posé</li>
+          <li><span class="ech ech-deplacement"></span>stylo levé</li>
+          <li><span class="ech ech-zone"></span>zone que la machine atteint</li>
+          <li><span class="ech ech-hors"></span>zone qu'elle n'atteint pas</li>
+        </ul>
+
+        <div class="commandes-sim">
+          <button type="button" class="bouton bouton-plein" id="sim-jouer">Lancer</button>
+          <button type="button" class="bouton bouton-fin" id="sim-terminer">Terminer la page</button>
+          <button type="button" class="bouton bouton-fin" id="sim-rejouer">Recommencer</button>
+          <label class="vitesse">Vitesse d'affichage
+            <select id="sim-vitesse">
+              <option value="0.5">lente</option>
+              <option value="2" selected>normale</option>
+              <option value="8">rapide</option>
+            </select>
+          </label>
+          <label class="vitesse">Page
+            <select id="sim-page"></select>
+          </label>
+        </div>
+        <p class="progression"><span class="mono" id="sim-progression">0 %</span>
+          <span id="sim-etat-plume" class="jeton">stylo levé</span></p>
+        <p class="mention">La vitesse d'affichage ne dit rien de la vitesse d'écriture
+          réelle : celle-ci n'a pas encore été mesurée.</p>
+
+        <div class="intervention" id="intervention" hidden>
+          <h3>Arrêt — à faire à la main</h3>
+          <p id="intervention-titre"></p>
+          <ol id="intervention-consignes"></ol>
+          <label class="case">
+            <input type="checkbox" id="intervention-controle">
+            <span>Feuille retournée, recalée, alignement vérifié.</span>
+          </label>
+          <button type="button" class="bouton bouton-plein" id="intervention-confirmer"
+            disabled>Confirmer et reprendre</button>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<footer class="pied">
+  <p><strong>1 € par page écrite à la main</strong> — Montpellier centre, remise à
+    définir. Aucun paiement n'est possible depuis ce site.</p>
+  <details class="tech">
+    <summary>Où en est ce service</summary>
+    <p>Rien n'a encore été écrit sur du vrai papier. La machine n'est pas réglée :
+      personne ne sait exactement où elle poserait le stylo sur la feuille. Les pages
+      montrées ici sont une simulation du chemin que suivrait le stylo.</p>
+    <p>La reproduction de votre propre écriture n'existe pas : aucun outil capable de
+      le faire n'est présent ici, et rien d'autre ne sera présenté comme votre écriture.</p>
+  </details>
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
