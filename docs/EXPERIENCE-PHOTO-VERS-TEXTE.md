@@ -50,7 +50,7 @@ des difficultés d'accès à ce modèle.
 GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https://github.com/dailenson/One-DM   /home/user/dailenson/one-dm
 GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https://github.com/dailenson/DiffBrush /home/user/dailenson/diffbrush
 python3 experiences/preflight_photo_vers_texte.py            # code retour 1
-python3 experiences/test_preflight_photo_vers_texte.py       # 19 tests, hors réseau
+python3 experiences/test_preflight_photo_vers_texte.py       # 22 tests, hors réseau
 ```
 
 Le diagnostic ne lance aucune inférence, ne télécharge aucun poids et
@@ -95,21 +95,27 @@ service payant.
    appellent sans condition `dist.init_process_group(backend='nccl')` puis
    `torch.cuda.set_device(local_rank)` (One-DM `test.py:22-24`, DiffBrush
    `generate.py:34-36`). L'option `--device cpu` existe mais n'est pas atteinte :
-   NCCL exige un GPU. Un correctif minimal (backend `gloo`, saut de
-   `cuda.set_device`) serait nécessaire — à ne pas écrire tant que les poids
-   manquent, ce serait du code non testable.
-2. **Aucun tunnel vers les hôtes de poids.** `drive.google.com`, `pan.baidu.com`
-   et `wisemodel.cn` répondent `403 Forbidden` au CONNECT de la passerelle
-   sortante. Le constat porte sur le tunnel vers le domaine : l'accès au fichier
-   de poids lui-même n'a pas été tenté et reste `NON_VERIFIE`.
-3. **Aucun tunnel vers le VAE.** `huggingface.co` répond également `403` au
-   CONNECT. Les deux modèles en dépendent pour décoder le latent en image.
+   NCCL exige un GPU. Un correctif minimal est décrit dans
+   [`docs/ADAPTATION-CPU-ONE-DM.md`](ADAPTATION-CPU-ONE-DM.md) — proposition non
+   validée, mais dont le premier point est vérifiable **sans aucun poids** par
+   un test structurel : le script doit démarrer en mono-processus et échouer sur
+   l'absence de point de contrôle, non sur NCCL.
+2. **Aucun tunnel vers les hôtes de poids depuis cette session cloud.**
+   `drive.google.com`, `pan.baidu.com` et `wisemodel.cn` répondent
+   `403 Forbidden` au CONNECT de la passerelle sortante **de l'environnement où
+   ce diagnostic a tourné** ; ailleurs, ces hôtes sont probablement joignables.
+   Le constat porte sur le tunnel vers le domaine : l'accès au fichier de poids
+   lui-même n'a pas été tenté et reste `NON_VERIFIE`.
+3. **Aucun tunnel vers le VAE depuis cette session cloud.** `huggingface.co`
+   répond également `403` au CONNECT, avec la même réserve de portée. Les deux
+   modèles en dépendent pour décoder le latent en image.
 4. **Chaîne de dépendances incompatible avec ce runtime.** Le couple épinglé
    `torch 1.13.1` / `torchvision 0.14.1` n'a pas de roue pour Python 3.11 côté
    torchvision ; les dépôts prévoient conda et Python 3.8.
 
 Ces quatre blocages sont indépendants : lever un seul ne rend pas l'inférence
-possible.
+possible. Les deux du milieu tiennent à l'environnement d'exécution, pas au
+dépôt amont : ils sont à re-tester sur chaque machine.
 
 ## 5. Caractères impossibles — constat exact
 
@@ -213,18 +219,24 @@ où il sera écrit, sur l'ASCII témoin d'abord :
 
 Obtenir un accès sortant à `huggingface.co` et à au moins un miroir de poids,
 puis relancer `experiences/preflight_photo_vers_texte.py`. Tant qu'il rend un
-code non nul, écrire du code d'inférence serait écrire du code invérifiable.
+code non nul, une **génération d'image** ne peut pas être vérifiée ; en
+revanche, le correctif de démarrage se teste structurellement dès maintenant,
+sans poids.
 
 Trois pistes restent ouvertes en parallèle, sans promesse et sans qu'un GPU
 payant soit imposé :
 
 - **Adaptation CPU, ou MPS sur Apple.** Analyse ciblée faite :
   [`docs/ADAPTATION-CPU-ONE-DM.md`](ADAPTATION-CPU-ONE-DM.md) — cinq
-  modifications dans le seul `test.py`, aucune dans les modèles, et un obstacle
-  supplémentaire découvert au passage (`download.pytorch.org`, requis trois fois
-  à la construction du modèle, lui aussi bloqué ici). Aucun chiffre de
-  performance n'est avancé : le coût dépend de la taille du UNet, **inconnue
-  tant que les poids ne sont pas obtenus**.
+  modifications dans le seul `test.py`, aucune dans les modèles — proposition
+  non validée. Obstacle supplémentaire découvert au passage : trois **demandes**
+  de poids ImageNet à `download.pytorch.org` à la construction du modèle (le
+  nombre de transferts réseau réels n'a pas été mesuré, torchvision passant par
+  un cache local), hôte refusé depuis cette session cloud. Aucun chiffre de
+  performance n'est avancé : l'architecture du UNet, elle, est inspectable dans
+  le code et la configuration, indépendamment des poids ; ce qui manque ici est
+  son **nombre de paramètres**, que seule une instanciation — donc l'exécution
+  de code tiers, exclue de cette analyse — établirait.
 - **Droit d'usage des poids**, à demander par écrit aux auteurs — démarche
   indépendante du calcul.
 - **Échantillon manuscrit explicitement réutilisable**, hors dépôt, jamais
