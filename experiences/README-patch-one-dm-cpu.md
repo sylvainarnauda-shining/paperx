@@ -19,7 +19,16 @@ touché.
 | commit | `dde2205a70a2c70d1786503d198a795358c80ee4` |
 | blob `test.py` | `cde1922c4362f20ec096cd0233e122c332dcc281` |
 
-L'applicateur refuse tout autre commit, tout autre blob, et tout clone modifié.
+L'applicateur refuse — **sans écrire un seul octet** — tout autre commit, tout
+autre blob, tout clone modifié, et tout correctif dont l'empreinte SHA-256
+diffère de celle attendue. Il refuse aussi un correctif qui toucherait un autre
+chemin que `test.py`, ou qui créerait, supprimerait, renommerait ou changerait
+le mode d'un fichier. Enfin, il applique et **compile le résultat dans un
+dossier temporaire avant toute modification du clone** : un correctif qui
+produirait un fichier syntaxiquement invalide est rejeté sans que le clone soit
+touché. Après écriture, le résultat est comparé octet pour octet à ce qui avait
+été préparé ; au moindre écart, le fichier est restauré.
+
 Aucun dépôt public supplémentaire n'est créé, aucune copie du code amont n'est
 versionnée ici : seul le différentiel l'est.
 
@@ -39,7 +48,7 @@ GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/dailenson/One-DM <chemin-du-c
 git -C <chemin-du-clone> checkout dde2205a70a2c70d1786503d198a795358c80ee4
 ```
 
-Tests : `python3 experiences/test_patch_one_dm_cpu.py`
+Tests : `python3 experiences/test_patch_one_dm_cpu.py` (19 tests)
 (variable `ONE_DM_CLONE` pour désigner le clone ; les tests qui en dépendent
 sont **ignorés** avec un message si le clone est absent, jamais remplacés par un
 faux dépôt qui simulerait une réussite).
@@ -51,6 +60,13 @@ faux dépôt qui simulerait une réussite).
   aucun import ni exécution du code amont, sans écriture de `.pyc`.
 - Une version divergente et un clone modifié sont refusés **sans qu'un seul
   octet ne change**.
+- Deux défauts remontés en revue sont reproduits puis refusés, chacun par
+  plusieurs couches indépendantes : un correctif augmenté d'un hunk créant un
+  fichier étranger (aucun fichier créé, clone propre), et un correctif dont une
+  ligne casse la syntaxe du résultat (`test.py` inchangé et toujours valide).
+  Deux tests supplémentaires désactivent le contrôle d'empreinte pour vérifier
+  que la liste de chemins autorisés et la compilation en zone temporaire
+  suffisent chacune à refuser, avant toute mutation.
 - **Simulation** : la fonction ajoutée par le correctif est extraite du fichier
   corrigé par analyse syntaxique, puis exécutée seule avec des doublures à la
   place de `torch` et `torch.distributed`. En mono-processus (`cpu`, `mps`, ou

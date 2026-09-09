@@ -18,6 +18,7 @@ Deux familles de tests :
 from __future__ import annotations
 
 import ast
+import hashlib
 import os
 import shutil
 import subprocess
@@ -157,6 +158,103 @@ class TestRefus(unittest.TestCase):
             avant = (copie / app.FICHIER_VISE).read_bytes()
             self.assertEqual(app.main(["--clone", str(copie), "--patch", str(PATCH)]), 0)
             self.assertEqual((copie / app.FICHIER_VISE).read_bytes(), avant)
+
+
+def patch_augmente(dossier: Path) -> Path:
+    """Correctif valide auquel on ajoute un hunk créant un fichier étranger."""
+    chemin = dossier / "augmente.patch"
+    chemin.write_text(
+        PATCH.read_text(encoding="utf-8")
+        + "--- /dev/null\n+++ b/unrelated.txt\n@@ -0,0 +1 @@\n+contenu injecte\n",
+        encoding="utf-8")
+    return chemin
+
+
+def patch_syntaxe_cassee(dossier: Path) -> Path:
+    """Correctif valide dont une ligne ajoutée casse la syntaxe du résultat."""
+    texte = PATCH.read_text(encoding="utf-8")
+    assert "+    return 0, 1, False" in texte
+    chemin = dossier / "casse.patch"
+    chemin.write_text(texte.replace("+    return 0, 1, False", "+    return ("),
+                      encoding="utf-8")
+    return chemin
+
+
+class TestReprosDeRevue(unittest.TestCase):
+    """Les deux défauts remontés en revue de la PR #4, reproduits puis refusés."""
+
+    def test_empreinte_du_correctif_livre_est_celle_attendue(self):
+        empreinte = hashlib.sha256(PATCH.read_bytes()).hexdigest()
+        self.assertEqual(empreinte, app.PATCH_SHA256,
+                         "constante d'empreinte périmée : la mettre à jour")
+
+    def test_chemins_du_correctif_livre(self):
+        self.assertEqual(app.chemins_du_correctif(PATCH.read_text(encoding="utf-8")),
+                         {app.FICHIER_VISE})
+
+    @unittest.skipUnless(clone_utilisable(), MOTIF_ABSENT)
+    def test_repro1_hunk_supplementaire_refuse_sans_rien_creer(self):
+        """Un hunk ajouté créait unrelated.txt et l'applicateur rendait 0."""
+        with tempfile.TemporaryDirectory() as tmp:
+            copie = copie_du_clone(Path(tmp))
+            patch = patch_augmente(Path(tmp))
+            avant = (copie / app.FICHIER_VISE).read_bytes()
+            code = app.main(["--clone", str(copie), "--patch", str(patch), "--appliquer"])
+            self.assertEqual(code, 1)
+            self.assertFalse((copie / "unrelated.txt").exists(),
+                             "aucun fichier étranger ne doit être créé")
+            self.assertEqual((copie / app.FICHIER_VISE).read_bytes(), avant)
+            self.assertEqual(self._etat(copie), "", "le clone doit rester propre")
+
+    @unittest.skipUnless(clone_utilisable(), MOTIF_ABSENT)
+    def test_repro2_syntaxe_cassee_ne_laisse_pas_le_fichier_invalide(self):
+        """`return (` passait apply --check et laissait test.py invalide."""
+        with tempfile.TemporaryDirectory() as tmp:
+            copie = copie_du_clone(Path(tmp))
+            patch = patch_syntaxe_cassee(Path(tmp))
+            cible = copie / app.FICHIER_VISE
+            avant = cible.read_bytes()
+            code = app.main(["--clone", str(copie), "--patch", str(patch), "--appliquer"])
+            self.assertEqual(code, 1)
+            self.assertEqual(cible.read_bytes(), avant, "aucun octet ne doit changer")
+            compile(cible.read_text(encoding="utf-8"), str(cible), "exec")
+            self.assertEqual(self._etat(copie), "")
+
+    @unittest.skipUnless(clone_utilisable(), MOTIF_ABSENT)
+    def test_couche_chemins_refuse_meme_sans_controle_d_empreinte(self):
+        """Sans l'empreinte, la liste de chemins autorisés doit suffire."""
+        with tempfile.TemporaryDirectory() as tmp:
+            copie = copie_du_clone(Path(tmp))
+            with self.assertRaises(app.Refus) as ctx:
+                app.verifier(copie, patch_augmente(Path(tmp)), verifier_empreinte=False)
+            self.assertIn("crée ou supprime", str(ctx.exception))
+            self.assertEqual(self._etat(copie), "")
+
+    @unittest.skipUnless(clone_utilisable(), MOTIF_ABSENT)
+    def test_couche_compilation_intervient_avant_toute_mutation(self):
+        """Sans l'empreinte, la compilation en zone temporaire doit suffire."""
+        with tempfile.TemporaryDirectory() as tmp:
+            copie = copie_du_clone(Path(tmp))
+            with self.assertRaises(app.Refus) as ctx:
+                app.verifier(copie, patch_syntaxe_cassee(Path(tmp)),
+                             verifier_empreinte=False)
+            message = str(ctx.exception)
+            self.assertIn("syntaxiquement valide", message)
+            self.assertIn("clone n'a pas été touché", message)
+            self.assertEqual(self._etat(copie), "")
+
+    def test_entetes_de_diff_speciaux_refuses(self):
+        for entete in ("new file mode 100644", "deleted file mode 100644",
+                       "rename from a.py", "GIT binary patch"):
+            with self.subTest(entete=entete):
+                with self.assertRaises(app.Refus):
+                    app.chemins_du_correctif(
+                        f"--- a/test.py\n+++ b/test.py\n{entete}\n@@ -1 +1 @@\n")
+
+    @staticmethod
+    def _etat(clone: Path) -> str:
+        return subprocess.run(["git", "-C", str(clone), "status", "--porcelain"],
+                              capture_output=True, text=True).stdout.strip()
 
 
 class TestApplication(unittest.TestCase):
