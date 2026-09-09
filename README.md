@@ -1,19 +1,27 @@
 # paperx
 
-Python ≥ 3.11 requis. Banc d'essai local **minimal** pour une seule question : est-ce qu'un texte
-français confié à une chaîne d'écriture mécanique ressort **exactement**
+Python ≥ 3.11 requis. Banc d'essai local pour une question précise : est-ce qu'un
+texte français confié à une chaîne d'écriture mécanique ressort **exactement**
 identique ? Bibliothèque standard uniquement, aucune dépendance, aucun poids de
 modèle, aucun accès réseau ni imprimante.
 
-Ce n'est pas un produit, pas une boutique, pas une interface web.
+Ce n'est pas un produit et ce n'est pas une boutique. Un **site local** (`paperx_web`)
+donne un parcours utilisable — texte, devis, aperçu, simulation, dossier de
+préparation — sur `127.0.0.1` uniquement, sans paiement et sans machine.
 
 ## Démarrer
 
 ```bash
-python3 -m unittest discover -s tests -t . -v      # 90 tests
+python3 -m unittest discover -s tests -t . -v      # 182 tests
 python3 -m paperx demo --text samples/texte_demo_fr.txt --out out
 python3 -m paperx experience                        # expérience falsifiable
+python3 -m paperx_web                               # site local, 127.0.0.1:8080
 ```
+
+Le site imprime au démarrage une **clé opérateur** à recopier depuis le terminal :
+l'espace opérateur (durées, coûts d'atelier, profils, constats du validateur) ne
+s'ouvre pas sans elle, et l'espace client ne reçoit jamais ces données.
+Voir [`docs/SITE-LOCAL.md`](docs/SITE-LOCAL.md).
 
 `demo` écrit dans `out/` : un aperçu SVG par page, une fiche de revue humaine
 non exécutable, et `rapport.json` (déterministe, JSON strict sans NaN).
@@ -33,6 +41,12 @@ Exemple versionné : [`docs/exemples/`](docs/exemples/).
   non mesurée. Rien n'est réduit pour masquer le problème.
 - Refus de toute sortie machine, y compris avec un profil marqué calibré.
 - Aperçu SVG lisible séparant la couche écriture de la couche annotations.
+- Site local français : texte exact, devis par face écrite, aperçu paginé,
+  simulation animée du tracé (stylo posé / levé, zones hors course signalées),
+  dossier de préparation ZIP au manifeste haché, état `NON_EXECUTABLE`.
+- Recto-verso : feuilles `ceil(faces / 2)`, jamais de demi-tarif implicite ;
+  retournement **manuel** avec attente et confirmation humaine explicite ;
+  supplément « à établir » tant qu'aucune durée d'atelier n'est mesurée.
 
 ## Non démontré
 
@@ -50,9 +64,13 @@ Limites détaillées : [`docs/LIMITES.md`](docs/LIMITES.md).
 
 ## Refus explicites
 
-Aucun G-code exécutable, aucun accès imprimante, aucun paiement, aucune donnée
-client, aucun secret, aucune interface web. Prix cible figé : **100 centimes par
-A4**, Montpellier centre, remise **à définir** (jamais supposée nulle).
+Aucun G-code exécutable, aucun accès imprimante, aucun paiement, aucun secret.
+Le site local n'écoute que sur la boucle locale et refuse de démarrer ailleurs ;
+il n'est pas déployable publiquement. Prix cible figé : **100 centimes par face
+A4 écrite**, Montpellier centre, remise **à définir** (jamais supposée nulle).
+
+Les données client (texte, photo, commandes) vivent hors du dépôt, dans
+`~/.paperx-web` ou `$PAPERX_WEB_DATA`, et ne sont jamais versionnées.
 
 ## Fichiers
 
@@ -69,6 +87,12 @@ A4**, Montpellier centre, remise **à définir** (jamais supposée nulle).
 | `paperx/gate.py`, `paperx/emit.py` | verrou global, refus de sortie machine |
 | `paperx/provider.py` | contrat du futur fournisseur de personnalisation |
 | `paperx/svg.py`, `paperx/report.py`, `paperx/cli.py` | aperçu, rapport, CLI |
+| `paperx/hands.py` | styles synthétiques distincts (transformations déclarées) |
+| `paperx/duplex.py` | faces, feuilles, supplément de retournement manuel |
+| `paperx/simulation.py` | surfaces, longueurs, temps décomposés, interventions humaines |
+| `paperx/trajexport.py` | export JSON des trajectoires (poses et levées explicites) |
+| `paperx/package.py` | dossiers de préparation ZIP : variante client, variante opérateur |
+| `paperx_web/` | site local : service, magasin, routeur HTTP, interfaces |
 | `samples/`, `docs/exemples/` | textes originaux, sorties de référence |
 
 ## Pour les agents
@@ -87,4 +111,10 @@ A4**, Montpellier centre, remise **à définir** (jamais supposée nulle).
    régénérer `docs/exemples/` (`python3 -m paperx demo --text
    samples/extrait_demo_fr.txt --out docs/exemples`), sinon un test échoue.
 8. `docs/initial-evidence.md` et `docs/evidence/` appartiennent à la revue
-   matériel : ne pas les modifier ici.
+   matériel : ne pas les modifier ici. `experiences/` appartient à une autre
+   session : ne pas y toucher non plus.
+9. L'espace client ne reçoit **aucune** donnée interne — ni durée d'exécution,
+   ni coût d'atelier, ni code de validateur, pas même replié. Un test le vérifie
+   sur chaque réponse d'API et sur le dossier remis.
+10. Les artefacts d'une commande sont figés à sa création : un dossier se relit,
+    il ne se recalcule pas.
