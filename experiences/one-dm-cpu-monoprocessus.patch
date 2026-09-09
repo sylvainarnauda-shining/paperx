@@ -1,0 +1,85 @@
+Correctif : démarrage mono-processus sans NCCL ni CUDA pour One-DM
+
+Cible STRICTE — ce correctif ne s'applique qu'à :
+    dépôt  : https://github.com/dailenson/One-DM
+    commit : dde2205a70a2c70d1786503d198a795358c80ee4
+    blob   : test.py = cde1922c4362f20ec096cd0233e122c332dcc281
+
+Objet : `test.py` appelle `dist.init_process_group(backend='nccl')` puis
+`torch.cuda.set_device()` sans condition, avant toute lecture de `--device`.
+L'option `--device cpu` existe donc mais n'est jamais atteinte. Le correctif
+n'active le mode multi-GPU que s'il est réellement demandé — périphérique CUDA
+ET variable `WORLD_SIZE` définie, ce que fait `torchrun`. La voie CUDA
+distribuée existante est donc inchangée ; le reste du fichier n'est pas touché.
+
+Ce correctif ne prétend PAS qu'une inférence réussit. Il ne traite que le
+démarrage. Poids, VAE, jeu de données et licences restent à obtenir et à
+vérifier séparément.
+
+Licence : ce correctif modifie du code publié sous licence MIT par Gang Dai
+(One-DM, © 2024) et est lui-même distribué sous licence MIT. Le dépôt paperx ne
+redistribue aucune copie du code amont : seul ce différentiel est versionné.
+
+Application : ne pas appliquer à la main. Utiliser
+    python3 experiences/appliquer_patch_one_dm_cpu.py --clone <chemin> --appliquer
+qui refuse tout autre commit et tout clone modifié.
+
+--- a/test.py
++++ b/test.py
+@@ -11,6 +11,28 @@
+ import torch.distributed as dist
+ from utils.util import fix_seed
+ 
++def paperx_setup_distributed(device, torch_mod, dist_mod, environ):
++    """Initialise le mode multi-GPU seulement s'il est reellement demande.
++
++    Renvoie (rang, nombre_de_processus, distribue).
++
++    Le mode distribue n'est active que si le peripherique demande est un GPU
++    CUDA *et* que le lanceur a defini WORLD_SIZE, ce que fait torchrun. La voie
++    CUDA distribuee existante est donc inchangee. Dans tous les autres cas,
++    l'execution est mono-processus et n'appelle ni NCCL ni torch.cuda, ce qui
++    rend `--device cpu` atteignable.
++
++    torch et torch.distributed sont passes en parametres pour que cette seule
++    decision puisse etre verifiee isolement, sans importer le reste du depot.
++    """
++    if str(device).startswith('cuda') and 'WORLD_SIZE' in environ:
++        dist_mod.init_process_group(backend='nccl')
++        rank = dist_mod.get_rank()
++        torch_mod.cuda.set_device(rank)
++        return rank, dist_mod.get_world_size(), True
++    return 0, 1, False
++
++
+ def main(opt):
+     """ load config file into cfg"""
+     cfg_from_file(opt.cfg_file)
+@@ -19,12 +41,10 @@
+     fix_seed(cfg.TRAIN.SEED)
+ 
+     """ set mulit-gpu """
+-    dist.init_process_group(backend='nccl')
+-    local_rank = dist.get_rank()
+-    torch.cuda.set_device(local_rank)
++    local_rank, totol_process, _ = paperx_setup_distributed(
++        opt.device, torch, dist, os.environ)
+ 
+     load_content = ContentData()
+-    totol_process = dist.get_world_size()
+ 
+     text_corpus = generate_type[opt.generate_type][1]
+     with open(text_corpus, 'r') as _f:
+@@ -33,10 +53,10 @@
+ 
+     """split the data for each GPU process"""
+     if  len(texts)%totol_process == 0:
+-        temp_texts = texts[dist.get_rank()*each_process:(dist.get_rank()+1)*each_process]
++        temp_texts = texts[local_rank*each_process:(local_rank+1)*each_process]
+     else:
+         each_process += 1
+-        temp_texts = texts[dist.get_rank()*each_process:(dist.get_rank()+1)*each_process]
++        temp_texts = texts[local_rank*each_process:(local_rank+1)*each_process]
+ 
+     
+     """setup data_loader instances"""
