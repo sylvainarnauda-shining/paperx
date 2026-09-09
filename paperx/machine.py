@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from . import numeric as num
 from .errors import ProfileError
 from .paper import PaperProfile
 
@@ -32,6 +33,21 @@ class Placement:
     origin_y_mm: float
     measured: bool
     label: str
+
+    def __post_init__(self) -> None:
+        problems = self.numeric_problems()
+        if problems:
+            raise ProfileError("pose de feuille incohérente : " + " ; ".join(problems))
+
+    def numeric_problems(self) -> tuple[str, ...]:
+        p: list[str] = []
+        num.require_in_mm_domain(p, "origin_x_mm", self.origin_x_mm)
+        num.require_in_mm_domain(p, "origin_y_mm", self.origin_y_mm)
+        if not isinstance(self.measured, bool):
+            p.append("measured : booléen attendu")
+        if not isinstance(self.label, str) or not self.label.strip():
+            p.append("label : libellé vide")
+        return tuple(p)
 
     def as_dict(self) -> dict:
         return {
@@ -68,15 +84,51 @@ class MachineProfile:
     provenance: str
 
     def __post_init__(self) -> None:
-        if not self.id or not self.version:
-            raise ProfileError("profil machine sans identifiant ou sans version")
-        if self.work_area_x_mm <= 0 or self.work_area_y_mm <= 0:
-            raise ProfileError(f"profil machine {self.ref()} : aire de travail non positive")
-        if self.calibrated and (self.pen_z_height_mm is None or self.placement is None):
+        problems = self.numeric_problems()
+        if problems:
             raise ProfileError(
-                f"profil machine {self.ref()} : marqué calibré sans hauteur de plume "
-                "ni pose de feuille mesurées"
+                f"profil machine {self.id}@{self.version} incohérent : "
+                + " ; ".join(problems)
             )
+
+    def numeric_problems(self) -> tuple[str, ...]:
+        """Défauts de ce profil, sans lever d'exception.
+
+        Un profil ne devient pas crédible parce que `calibrated` vaut `True` :
+        la calibration exige une pose de feuille MESURÉE et des hauteurs
+        réellement connues, toutes finies.
+        """
+        p: list[str] = []
+        if not isinstance(self.id, str) or not self.id.strip():
+            p.append("id : identifiant vide")
+        if not isinstance(self.version, str) or not self.version.strip():
+            p.append("version : version vide")
+        if not isinstance(self.calibrated, bool):
+            p.append("calibrated : booléen attendu")
+
+        for name in ("work_area_x_mm", "work_area_y_mm",
+                     "max_draw_speed_mm_s", "max_travel_speed_mm_s"):
+            num.require_positive(p, name, getattr(self, name))
+        num.require_in_mm_domain(p, "work_area_x_mm", self.work_area_x_mm)
+        num.require_in_mm_domain(p, "work_area_y_mm", self.work_area_y_mm)
+        num.require_int(p, "max_pen_lifts_per_page", self.max_pen_lifts_per_page, minimum=0)
+
+        if self.pen_z_height_mm is not None:
+            num.require_positive(p, "pen_z_height_mm", self.pen_z_height_mm)
+            num.require_in_mm_domain(p, "pen_z_height_mm", self.pen_z_height_mm)
+        if self.z_offset_mm is not None:
+            num.require_in_mm_domain(p, "z_offset_mm", self.z_offset_mm)
+        if self.placement is not None:
+            p.extend(f"placement.{msg}" for msg in self.placement.numeric_problems())
+
+        if self.calibrated:
+            if self.placement is None or not self.placement.measured:
+                p.append("calibrated=True sans pose de feuille mesurée")
+            if self.pen_z_height_mm is None:
+                p.append("calibrated=True sans hauteur de plume connue")
+            if self.z_offset_mm is None:
+                p.append("calibrated=True sans offset Z connu")
+        return tuple(p)
 
     def ref(self) -> str:
         return f"{self.id}@{self.version}"

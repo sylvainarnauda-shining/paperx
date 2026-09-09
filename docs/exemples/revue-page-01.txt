@@ -1,0 +1,24 @@
+FICHE DE REVUE HUMAINE — NON EXÉCUTABLE. Ce document n'est ni du G-code, ni un fichier de tâche machine.
+
+page                : 1
+papier              : demo-a4@1.0.0
+écriture            : synthetic-generic@1.0.0 (générique synthétique, non personnalisée)
+vitesses            : demo-speeds@1.0.0
+machine             : bambu-p1s@0.0.0+non-calibre — calibrée : False
+traits              : 434
+levées de plume     : 433
+points              : 3657
+longueur tracée     : 1599.2 mm
+déplacements        : 1611.6 mm
+trajectoire valide  : True
+prêt machine        : False
+
+constats :
+  [bloquant_machine] CHAINE_NON_VALIDEE × 1 — chaîne non validée de bout en bout : offsets XY réels, hauteurs de contact et de levée, obstacles physiques et état machine ne sont pas représentés dans ce banc d'essai. Aucun profil ne peut devenir « prêt machine » ici.
+  [bloquant_machine] HAUTEUR_PLUME_INCONNUE × 1 — hauteur de plume et/ou offset Z inconnus : rien n'est deviné
+  [bloquant_machine] MACHINE_NON_CALIBREE × 1 — profil machine non calibré : aucune sortie machine autorisée
+  [bloquant_machine] PAPIER_NON_MESURE × 1 — profil papier de démonstration, non mesuré sur un papier réel
+  [bloquant_machine] POSE_FEUILLE_NON_MESUREE × 1 — la pose de la feuille est une hypothèse non mesurée ; l'atteignabilité ci-dessous est donc hypothétique
+  [bloquant_machine] VITESSES_NON_MESUREES × 1 — vitesses déclarées, jamais mesurées sur une machine réelle
+  [bloquant_machine] ZONE_INACCESSIBLE × 1 — des points de tracé tombent dans une zone hors course machine ; aucune mise à l'échelle n'est appliquée pour les y ramener
+  (aucun)

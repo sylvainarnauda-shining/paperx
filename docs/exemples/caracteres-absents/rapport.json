@@ -1,0 +1,480 @@
+{
+  "ecriture": {
+    "libelle": "ÉCRITURE GÉNÉRIQUE SYNTHÉTIQUE (tests mécaniques uniquement)",
+    "personnalisee": false,
+    "provenance": "Tracés écrits à la main dans paperx/synthetic_hand.py. Aucune photo, aucun échantillon manuscrit, aucun modèle, aucun poids.",
+    "reference": "synthetic-generic@1.0.0",
+    "socle_francais_manquant": []
+  },
+  "fournisseur_personnalisation": {
+    "caracteres_couverts": 0,
+    "conformite_contrat": "conforme",
+    "execute_localement": false,
+    "fournisseur": "aucun-fournisseur@1.0.0",
+    "licence": "sans objet — aucun modèle, aucun poids, aucun code tiers",
+    "licence_verifiee": true,
+    "notes": "Aucun fournisseur de personnalisation n'existe à ce stade. Toute demande est refusée explicitement.",
+    "personnalise": false,
+    "poids": null,
+    "types_echantillon_requis": [
+      "echantillon_manuscrit_client"
+    ]
+  },
+  "mise_en_page": {
+    "caracteres_dessines": 200,
+    "couverture": {
+      "caracteres_non_pris_en_charge": 12,
+      "caracteres_pris_en_charge": 231,
+      "caracteres_total": 243,
+      "charset": "paperx-charset@1.0.0",
+      "detail_non_pris_en_charge": [
+        {
+          "caractere": "\t",
+          "codepoint": "U+0009",
+          "index": [
+            123
+          ],
+          "nom_unicode": "SANS NOM UNICODE",
+          "occurrences": 1,
+          "premier_index": 123
+        },
+        {
+          "caractere": "#",
+          "codepoint": "U+0023",
+          "index": [
+            108
+          ],
+          "nom_unicode": "NUMBER SIGN",
+          "occurrences": 1,
+          "premier_index": 108
+        },
+        {
+          "caractere": "&",
+          "codepoint": "U+0026",
+          "index": [
+            110
+          ],
+          "nom_unicode": "AMPERSAND",
+          "occurrences": 1,
+          "premier_index": 110
+        },
+        {
+          "caractere": "@",
+          "codepoint": "U+0040",
+          "index": [
+            106
+          ],
+          "nom_unicode": "COMMERCIAL AT",
+          "occurrences": 1,
+          "premier_index": 106
+        },
+        {
+          "caractere": "~",
+          "codepoint": "U+007E",
+          "index": [
+            112
+          ],
+          "nom_unicode": "TILDE",
+          "occurrences": 1,
+          "premier_index": 112
+        },
+        {
+          "caractere": "±",
+          "codepoint": "U+00B1",
+          "index": [
+            114
+          ],
+          "nom_unicode": "PLUS-MINUS SIGN",
+          "occurrences": 1,
+          "premier_index": 114
+        },
+        {
+          "caractere": "ß",
+          "codepoint": "U+00DF",
+          "index": [
+            116
+          ],
+          "nom_unicode": "LATIN SMALL LETTER SHARP S",
+          "occurrences": 1,
+          "premier_index": 116
+        },
+        {
+          "caractere": "ñ",
+          "codepoint": "U+00F1",
+          "index": [
+            118
+          ],
+          "nom_unicode": "LATIN SMALL LETTER N WITH TILDE",
+          "occurrences": 1,
+          "premier_index": 118
+        },
+        {
+          "caractere": "€",
+          "codepoint": "U+20AC",
+          "index": [
+            104
+          ],
+          "nom_unicode": "EURO SIGN",
+          "occurrences": 1,
+          "premier_index": 104
+        },
+        {
+          "caractere": "←",
+          "codepoint": "U+2190",
+          "index": [
+            124
+          ],
+          "nom_unicode": "LEFTWARDS ARROW",
+          "occurrences": 1,
+          "premier_index": 124
+        },
+        {
+          "caractere": "➜",
+          "codepoint": "U+279C",
+          "index": [
+            122
+          ],
+          "nom_unicode": "HEAVY ROUND-TIPPED RIGHTWARDS ARROW",
+          "occurrences": 1,
+          "premier_index": 122
+        },
+        {
+          "caractere": "漢",
+          "codepoint": "U+6F22",
+          "index": [
+            120
+          ],
+          "nom_unicode": "CJK UNIFIED IDEOGRAPH-6F22",
+          "occurrences": 1,
+          "premier_index": 120
+        }
+      ],
+      "ecriture": "synthetic-generic@1.0.0"
+    },
+    "evenements": [
+      {
+        "code": "caractere_non_pris_en_charge",
+        "detail": "U+20AC '€' × 1 — conservé dans le texte, marqué dans l'aperçu, jamais remplacé.",
+        "index": 104
+      },
+      {
+        "code": "caractere_non_pris_en_charge",
+        "detail": "U+0040 '@' × 1 — conservé dans le texte, marqué dans l'aperçu, jamais remplacé.",
+        "index": 106
+      },
+      {
+        "code": "caractere_non_pris_en_charge",
+        "detail": "U+0023 '#' × 1 — conservé dans le texte, marqué dans l'aperçu, jamais remplacé.",
+        "index": 108
+      },
+      {
+        "code": "caractere_non_pris_en_charge",
+        "detail": "U+0026 '&' × 1 — conservé dans le texte, marqué dans l'aperçu, jamais remplacé.",
+        "index": 110
+      },
+      {
+        "code": "caractere_non_pris_en_charge",
+        "detail": "U+007E '~' × 1 — conservé dans le texte, marqué dans l'aperçu, jamais remplacé.",
+        "index": 112
+      },
+      {
+        "code": "caractere_non_pris_en_charge",
+        "detail": "U+00B1 '±' × 1 — conservé dans le texte, marqué dans l'aperçu, jamais remplacé.",
+        "index": 114
+      },
+      {
+        "code": "caractere_non_pris_en_charge",
+        "detail": "U+00DF 'ß' × 1 — conservé dans le texte, marqué dans l'aperçu, jamais remplacé.",
+        "index": 116
+      },
+      {
+        "code": "caractere_non_pris_en_charge",
+        "detail": "U+00F1 'ñ' × 1 — conservé dans le texte, marqué dans l'aperçu, jamais remplacé.",
+        "index": 118
+      },
+      {
+        "code": "caractere_non_pris_en_charge",
+        "detail": "U+6F22 '漢' × 1 — conservé dans le texte, marqué dans l'aperçu, jamais remplacé.",
+        "index": 120
+      },
+      {
+        "code": "caractere_non_pris_en_charge",
+        "detail": "U+279C '➜' × 1 — conservé dans le texte, marqué dans l'aperçu, jamais remplacé.",
+        "index": 122
+      },
+      {
+        "code": "caractere_non_pris_en_charge",
+        "detail": "U+0009 '\\t' × 1 — conservé dans le texte, marqué dans l'aperçu, jamais remplacé.",
+        "index": 123
+      },
+      {
+        "code": "caractere_non_pris_en_charge",
+        "detail": "U+2190 '←' × 1 — conservé dans le texte, marqué dans l'aperçu, jamais remplacé.",
+        "index": 124
+      }
+    ],
+    "lignes": 4,
+    "metriques": {
+      "bande_utile_mm": [
+        20.62,
+        191.8
+      ],
+      "encre_au_dessus_ligne_base_mm": 4.55,
+      "encre_sous_ligne_base_mm": 1.3,
+      "largeur_utile_mm": 171.18,
+      "lignes_par_page": 32,
+      "reserve_encre_droite_mm": 0.2,
+      "reserve_encre_gauche_mm": 0.62
+    },
+    "pages": 1,
+    "preservation_exacte": true
+  },
+  "pages": [
+    {
+      "levees_plume": 294,
+      "page": 1,
+      "traits": 295,
+      "validation": {
+        "atteignabilite": {
+          "aire_inaccessible_mm2": 8610.0,
+          "machine": "bambu-p1s@0.0.0+non-calibre",
+          "mise_a_echelle_appliquee": false,
+          "note": "Aucune réduction d'échelle du texte ni de l'écriture n'est appliquée pour masquer le manque de course.",
+          "papier": "demo-a4@1.0.0",
+          "part_page_inaccessible": 0.138,
+          "pose_feuille": {
+            "libelle": "HYPOTHÈSE NON MESURÉE : feuille au coin plateau (0,0), non tournée",
+            "mesuree": false,
+            "origine_mm": [
+              0.0,
+              0.0
+            ]
+          },
+          "resultat_hypothetique": true,
+          "zone_atteignable_mm": {
+            "aire_mm2": 53760.0,
+            "x0": 0.0,
+            "x1": 210.0,
+            "y0": 41.0,
+            "y1": 297.0
+          },
+          "zones_inaccessibles_mm": [
+            {
+              "aire_mm2": 8610.0,
+              "x0": 0.0,
+              "x1": 210.0,
+              "y0": 0.0,
+              "y1": 41.0
+            }
+          ]
+        },
+        "constats": [
+          {
+            "code": "CARACTERE_SANS_TRACE",
+            "exemples": [
+              "index 104 U+20AC",
+              "index 106 U+0040",
+              "index 108 U+0023",
+              "index 110 U+0026",
+              "index 112 U+007E"
+            ],
+            "gravite": "bloquant_machine",
+            "message": "caractère non pris en charge : aucun trait produit, emplacement laissé vide et signalé (jamais supprimé ni remplacé)",
+            "occurrences": 12
+          },
+          {
+            "code": "CHAINE_NON_VALIDEE",
+            "exemples": [
+              "paperx.gate.MACHINE_OUTPUT_AVAILABLE = False"
+            ],
+            "gravite": "bloquant_machine",
+            "message": "chaîne non validée de bout en bout : offsets XY réels, hauteurs de contact et de levée, obstacles physiques et état machine ne sont pas représentés dans ce banc d'essai. Aucun profil ne peut devenir « prêt machine » ici.",
+            "occurrences": 1
+          },
+          {
+            "code": "HAUTEUR_PLUME_INCONNUE",
+            "exemples": [
+              "bambu-p1s@0.0.0+non-calibre"
+            ],
+            "gravite": "bloquant_machine",
+            "message": "hauteur de plume et/ou offset Z inconnus : rien n'est deviné",
+            "occurrences": 1
+          },
+          {
+            "code": "MACHINE_NON_CALIBREE",
+            "exemples": [
+              "bambu-p1s@0.0.0+non-calibre"
+            ],
+            "gravite": "bloquant_machine",
+            "message": "profil machine non calibré : aucune sortie machine autorisée",
+            "occurrences": 1
+          },
+          {
+            "code": "PAPIER_NON_MESURE",
+            "exemples": [
+              "demo-a4@1.0.0"
+            ],
+            "gravite": "bloquant_machine",
+            "message": "profil papier de démonstration, non mesuré sur un papier réel",
+            "occurrences": 1
+          },
+          {
+            "code": "POSE_FEUILLE_NON_MESUREE",
+            "exemples": [
+              "HYPOTHÈSE NON MESURÉE : feuille au coin plateau (0,0), non tournée"
+            ],
+            "gravite": "bloquant_machine",
+            "message": "la pose de la feuille est une hypothèse non mesurée ; l'atteignabilité ci-dessous est donc hypothétique",
+            "occurrences": 1
+          },
+          {
+            "code": "VITESSES_NON_MESUREES",
+            "exemples": [
+              "demo-speeds@1.0.0"
+            ],
+            "gravite": "bloquant_machine",
+            "message": "vitesses déclarées, jamais mesurées sur une machine réelle",
+            "occurrences": 1
+          },
+          {
+            "code": "ZONE_INACCESSIBLE",
+            "exemples": [
+              "page 1 : 1414 points, 120 caractères"
+            ],
+            "gravite": "bloquant_machine",
+            "message": "des points de tracé tombent dans une zone hors course machine ; aucune mise à l'échelle n'est appliquée pour les y ramener",
+            "occurrences": 1
+          }
+        ],
+        "limite_validateur": "Ce validateur contrôle des nombres et une géométrie de page. Il ne modélise ni les offsets XY réels, ni les hauteurs de contact et de levée, ni les obstacles physiques, ni l'état de la machine.",
+        "page": 1,
+        "pret_machine": false,
+        "profils": [
+          "demo-a4@1.0.0",
+          "bambu-p1s@0.0.0+non-calibre",
+          "demo-speeds@1.0.0",
+          "demo-limits@1.1.0",
+          "synthetic-generic@1.0.0",
+          "demo-a4@1.0.0",
+          "demo-speeds@1.0.0"
+        ],
+        "statistiques": {
+          "caracteres_en_zone_inaccessible": 120,
+          "caracteres_sans_trace": 12,
+          "duree_theorique_s": 73.2,
+          "levees_plume": 294,
+          "longueur_deplacements_mm": 1015.2,
+          "longueur_tracee_mm": 1124.8,
+          "points": 2488,
+          "points_en_zone_inaccessible": 1414,
+          "segment_le_plus_long_mm": 3.75,
+          "traits": 295
+        },
+        "trajectoire_valide": true,
+        "validateur": "paperx-validator@1.1.0"
+      }
+    }
+  ],
+  "profils": {
+    "limites_validation": {
+      "coordonnee_max_mm": 1000.0,
+      "points_max_par_page": 400000,
+      "profil": "demo-limits@1.1.0",
+      "provenance": "Garde-fous choisis dans paperx/validator.py pour exercer la validation. Non mesurés sur machine.",
+      "segment_max_mm": 25.0,
+      "segment_min_mm": 0.01
+    },
+    "machine": {
+      "aire_travail_mm": [
+        256.0,
+        256.0
+      ],
+      "calibre": false,
+      "hauteur_plume_mm": null,
+      "levees_max_par_page": 20000,
+      "libelle": "Bambu Lab P1S — NON CALIBRÉ (aucun essai réel, aucune mesure)",
+      "offset_z_mm": null,
+      "pose_feuille": null,
+      "profil": "bambu-p1s@0.0.0+non-calibre",
+      "provenance": "Aire de travail 256x256 mm = valeur nominale annoncée pour la P1S. Plafonds de vitesse = garde-fous de validation choisis ici, non mesurés. Hauteur de plume, offset Z et pose de la feuille : INCONNUS, non devinés.",
+      "vitesse_max_deplacement_mm_s": 100.0,
+      "vitesse_max_trace_mm_s": 30.0
+    },
+    "papier": {
+      "corps_mm": 5.0,
+      "format_mm": [
+        210.0,
+        297.0
+      ],
+      "interligne_mm": 8.0,
+      "largeur_trait_mm": 0.4,
+      "libelle": "A4 — PROFIL DE DÉMONSTRATION (cotes déclarées, non mesurées)",
+      "marges_mm": {
+        "bas": 20.0,
+        "droite": 18.0,
+        "gauche": 20.0,
+        "haut": 20.0
+      },
+      "mesure_sur_papier_reel": false,
+      "premiere_ligne_de_base_mm": 26.0,
+      "profil": "demo-a4@1.0.0",
+      "provenance": "210x297 mm = ISO 216 (A4). Marges, interligne, corps et largeur de trait sont des valeurs de démonstration choisies dans ce fichier ; elles ne décrivent aucun papier ni aucun stylo réellement caractérisé.",
+      "zone_utile_mm": [
+        172.0,
+        257.0
+      ]
+    },
+    "vitesses": {
+      "mesure_sur_machine_reelle": false,
+      "profil": "demo-speeds@1.0.0",
+      "provenance": "Valeurs de démonstration choisies dans paperx/strokes.py pour exercer le validateur. Aucune mesure sur machine réelle, aucun essai d'écriture.",
+      "vitesse_deplacement_mm_s": 60.0,
+      "vitesse_trace_mm_s": 20.0
+    }
+  },
+  "revendications": {
+    "execute": [
+      "décodage UTF-8 strict du texte source et empreinte SHA-256 des octets",
+      "pagination A4 sur un profil papier explicite, avec preuve de reconstruction exacte du texte",
+      "signalement des caractères non pris en charge, sans suppression ni remplacement",
+      "construction de trajectoires monotraits et validation déterministe (nombres finis, bornes, vitesses, levées, profils versionnés)",
+      "calcul des zones inaccessibles d'une A4 par une aire de travail 256 x 256 mm, sous hypothèse de pose explicitement non mesurée",
+      "rendu d'un aperçu SVG lisible séparant écriture et annotations",
+      "refus de toute sortie machine (verrou global + profil non calibré)"
+    ],
+    "non_demontre": [
+      "toute ressemblance de l'écriture générique synthétique avec une écriture humaine",
+      "toute personnalisation à partir d'une photo ou d'un échantillon",
+      "toute écriture réellement tracée sur du papier",
+      "toute calibration machine : offsets XY, hauteurs de contact et de levée, obstacles, état machine",
+      "tout comportement d'encre, de papier ou de stylo réel",
+      "toute exécution d'un modèle appris (aucun poids n'est présent ni téléchargé)"
+    ]
+  },
+  "sortie_machine": {
+    "acces_imprimante": false,
+    "code_verrou": "CHAINE_NON_VALIDEE",
+    "disponible": false,
+    "gcode_executable_produit": false,
+    "raison": "chaîne non validée de bout en bout : offsets XY réels, hauteurs de contact et de levée, obstacles physiques et état machine ne sont pas représentés dans ce banc d'essai. Aucun profil ne peut devenir « prêt machine » ici."
+  },
+  "source": {
+    "caracteres": 243,
+    "octets": 260,
+    "origine": "samples/caracteres_absents_fr.txt",
+    "preservation_exacte": true,
+    "sha256": "a0ed3aa822649e9bfc77729642971828ae6f0644f98121d52aec78727c8e1929"
+  },
+  "tarif": {
+    "engageant": false,
+    "pages": 1,
+    "paiement_active": false,
+    "prix_unitaire_centimes": 100,
+    "remise": "à définir",
+    "total_centimes": 100,
+    "total_euros": 1.0,
+    "version_tarif": "1.0.0",
+    "zone": "Montpellier centre"
+  },
+  "version_rapport": "1.1.0"
+}

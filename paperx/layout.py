@@ -3,11 +3,14 @@
 Invariant central, testé : la concaténation, dans l'ordre, des tranches
 `texte[span.start:span.end]` de toutes les pages redonne **exactement** le texte
 source — espaces multiples, espaces insécables, retours à la ligne et caractères
-non pris en charge compris.
+non pris en charge compris. Chaque index du source apparaît une fois et une
+seule.
 
-Aucun caractère n'est supprimé, remplacé ni « rapetissé » pour tenir : si un mot
-seul dépasse la largeur utile, il est coupé au caractère et l'événement est
-signalé ; si un seul caractère dépasse, la mise en page échoue explicitement.
+La mise en page raisonne sur les bornes d'ENCRE de l'écriture (débord gauche du
+« j », descendantes du « g », accents des capitales) et sur la largeur de trait,
+pas sur la seule avance : rien ne doit dépasser des marges. Un profil papier
+géométriquement incompatible avec l'écriture est refusé, pas rattrapé en
+silence. Aucun caractère n'est supprimé, remplacé ni réduit pour tenir.
 """
 
 from __future__ import annotations
@@ -20,10 +23,10 @@ from .paper import PaperProfile
 from .textsource import SourceText
 
 # Types de fragments placés. Tous participent à la reconstruction du texte.
-KIND_GLYPHS = "glyphes"           # fragment dessiné
-KIND_SPACE = "espace"             # espace dessinée (avance seulement)
-KIND_SPACE_WRAPPED = "espace_repliee"  # espace consommée par un retour à la ligne
-KIND_NEWLINE = "retour_ligne"     # '\n' du source
+KIND_GLYPHS = "glyphes"                 # fragment dessiné
+KIND_SPACE = "espace"                   # espace dessinée (avance seulement)
+KIND_SPACE_WRAPPED = "espace_repliee"   # espace conservée mais de largeur nulle
+KIND_NEWLINE = "retour_ligne"           # '\n' du source
 
 
 @dataclass(frozen=True)
@@ -78,6 +81,34 @@ class LayoutEvent:
 
 
 @dataclass(frozen=True)
+class LayoutMetrics:
+    """Bande utile réellement employée, réserves d'encre comprises."""
+
+    left_mm: float
+    right_limit_mm: float
+    reserve_left_mm: float
+    reserve_right_mm: float
+    ink_above_baseline_mm: float
+    ink_below_baseline_mm: float
+    lines_per_page: int
+
+    @property
+    def usable_width_mm(self) -> float:
+        return self.right_limit_mm - self.left_mm
+
+    def as_dict(self) -> dict:
+        return {
+            "bande_utile_mm": [round(self.left_mm, 3), round(self.right_limit_mm, 3)],
+            "largeur_utile_mm": round(self.usable_width_mm, 3),
+            "reserve_encre_gauche_mm": round(self.reserve_left_mm, 3),
+            "reserve_encre_droite_mm": round(self.reserve_right_mm, 3),
+            "encre_au_dessus_ligne_base_mm": round(self.ink_above_baseline_mm, 3),
+            "encre_sous_ligne_base_mm": round(self.ink_below_baseline_mm, 3),
+            "lignes_par_page": self.lines_per_page,
+        }
+
+
+@dataclass(frozen=True)
 class LayoutResult:
     source: SourceText
     paper: PaperProfile
@@ -85,6 +116,7 @@ class LayoutResult:
     pages: tuple[Page, ...]
     events: tuple[LayoutEvent, ...]
     coverage: charset.CoverageReport
+    metrics: LayoutMetrics
 
     @property
     def lines(self) -> tuple[Line, ...]:
@@ -106,6 +138,7 @@ class LayoutResult:
             "lignes": len(self.lines),
             "caracteres_dessines": sum(len(l.chars) for l in self.lines),
             "preservation_exacte": self.preservation_ok(),
+            "metriques": self.metrics.as_dict(),
             "evenements": [e.as_dict() for e in self.events],
             "couverture": self.coverage.as_dict(),
         }
@@ -157,11 +190,58 @@ class _LineBuilder:
         return bool(self.spans)
 
 
+def metrics_for(paper: PaperProfile) -> LayoutMetrics:
+    """Bande utile pour l'écriture générique synthétique, réserves comprises."""
+    em = paper.font_size_mm
+    half_pen = paper.pen_width_mm / 2.0
+    reserve_left = synthetic_hand.ink_reserve_left_em() * em + half_pen
+    reserve_right = synthetic_hand.ink_reserve_right_em() * em + half_pen
+    ink_above = synthetic_hand.ink_above_baseline_em() * em + half_pen
+    ink_below = synthetic_hand.ink_below_baseline_em() * em + half_pen
+    return LayoutMetrics(
+        left_mm=paper.margin_left_mm + reserve_left,
+        right_limit_mm=paper.width_mm - paper.margin_right_mm - reserve_right,
+        reserve_left_mm=reserve_left,
+        reserve_right_mm=reserve_right,
+        ink_above_baseline_mm=ink_above,
+        ink_below_baseline_mm=ink_below,
+        lines_per_page=paper.lines_per_page(ink_below),
+    )
+
+
+def check_geometry(paper: PaperProfile) -> LayoutMetrics:
+    """Refuse un profil papier géométriquement incompatible avec l'écriture."""
+    problems = paper.numeric_problems()
+    if problems:
+        raise LayoutError(f"profil papier {paper.ref()} invalide : " + " ; ".join(problems))
+
+    m = metrics_for(paper)
+    if paper.first_baseline_mm - m.ink_above_baseline_mm < paper.margin_top_mm:
+        raise LayoutError(
+            f"profil {paper.ref()} : la première ligne de base "
+            f"({paper.first_baseline_mm} mm) laisserait l'encre haute "
+            f"({m.ink_above_baseline_mm:.2f} mm au-dessus) franchir la marge haute "
+            f"({paper.margin_top_mm} mm). Aucun rattrapage n'est appliqué."
+        )
+    if m.usable_width_mm <= 0:
+        raise LayoutError(
+            f"profil {paper.ref()} : largeur utile nulle ou négative une fois les "
+            f"réserves d'encre appliquées ({m.usable_width_mm:.2f} mm)."
+        )
+    if m.lines_per_page < 1:
+        raise LayoutError(
+            f"profil {paper.ref()} : aucune ligne ne tient dans la zone utile en "
+            f"réservant {m.ink_below_baseline_mm:.2f} mm sous la ligne de base."
+        )
+    return m
+
+
 def paginate(source: SourceText, paper: PaperProfile) -> LayoutResult:
+    metrics = check_geometry(paper)
     text = source.text
     em = paper.font_size_mm
-    left = paper.margin_left_mm
-    right_limit = paper.width_mm - paper.margin_right_mm
+    left = metrics.left_mm
+    right_limit = metrics.right_limit_mm
     supported = synthetic_hand.supported_chars()
 
     events: list[LayoutEvent] = []
@@ -183,16 +263,37 @@ def paginate(source: SourceText, paper: PaperProfile) -> LayoutResult:
             current.cursor_x += adv
         current.spans.append(PlacedSpan(KIND_GLYPHS, start, end, x0, current.cursor_x - x0))
 
+    def place_spaces(start: int, end: int) -> None:
+        """Place une suite d'espaces sans jamais franchir la bande utile.
+
+        Les espaces qui ne tiennent pas restent dans la mise en page (indices
+        conservés, texte intact) mais avec une largeur nulle, et la ligne est
+        repliée. Une ligne d'espaces ne peut donc pas déborder de la page.
+        """
+        k, x, x0 = start, current.cursor_x, current.cursor_x
+        while k < end:
+            adv = synthetic_hand.advance_of(text[k]) * em
+            if x + adv > right_limit:
+                break
+            x += adv
+            k += 1
+        if k > start:
+            current.spans.append(PlacedSpan(KIND_SPACE, start, k, x0, x - x0))
+            current.cursor_x = x
+        if k < end:
+            current.spans.append(PlacedSpan(KIND_SPACE_WRAPPED, k, end, None, 0.0))
+            events.append(LayoutEvent(
+                "espaces_repliees", k,
+                f"{end - k} espace(s) au-delà de la bande utile : conservées dans le "
+                "texte, largeur nulle, ligne repliée."))
+            flush()
+
     pending_space: tuple[int, int] | None = None
 
     for kind, start, end in _atoms(text):
         if kind == "nl":
             if pending_space is not None:
-                sp_w = _width_mm(text, *pending_space, em)
-                current.spans.append(
-                    PlacedSpan(KIND_SPACE, pending_space[0], pending_space[1],
-                               current.cursor_x, sp_w))
-                current.cursor_x += sp_w
+                place_spaces(*pending_space)
                 pending_space = None
             current.spans.append(PlacedSpan(KIND_NEWLINE, start, end))
             flush()
@@ -215,10 +316,7 @@ def paginate(source: SourceText, paper: PaperProfile) -> LayoutResult:
                 pending_space = None
             flush()
         elif pending_space is not None:
-            current.spans.append(
-                PlacedSpan(KIND_SPACE, pending_space[0], pending_space[1],
-                           current.cursor_x, space_w))
-            current.cursor_x += space_w
+            place_spaces(*pending_space)
             pending_space = None
 
         # Placement du mot, avec coupe dure si nécessaire (jamais de réduction).
@@ -238,8 +336,8 @@ def paginate(source: SourceText, paper: PaperProfile) -> LayoutResult:
                     flush()
                     continue
                 raise LayoutError(
-                    f"caractère {text[cursor]!r} (index {cursor}) plus large que la zone "
-                    f"utile ({paper.usable_width_mm:.2f} mm) du profil {paper.ref()}. "
+                    f"caractère {text[cursor]!r} (index {cursor}) plus large que la bande "
+                    f"utile ({metrics.usable_width_mm:.2f} mm) du profil {paper.ref()}. "
                     "Aucune réduction n'est appliquée : corrigez le profil papier."
                 )
 
@@ -248,23 +346,17 @@ def paginate(source: SourceText, paper: PaperProfile) -> LayoutResult:
                 events.append(LayoutEvent(
                     "coupe_dure", fits_end,
                     f"mot {text[start:end]!r} coupé au caractère (index {fits_end}) : "
-                    "plus large que la zone utile ; aucun trait d'union ajouté."))
+                    "plus large que la bande utile ; aucun trait d'union ajouté."))
                 flush()
             cursor = fits_end
 
     if pending_space is not None:
-        sp_w = _width_mm(text, *pending_space, em)
-        current.spans.append(
-            PlacedSpan(KIND_SPACE, pending_space[0], pending_space[1], current.cursor_x, sp_w))
-        current.cursor_x += sp_w
+        place_spaces(*pending_space)
     if current.has_content:
         flush()
 
     # --- Affectation aux pages et aux lignes de base --------------------------
-    per_page = paper.lines_per_page
-    if per_page <= 0:
-        raise LayoutError(f"profil {paper.ref()} : aucune ligne ne tient dans la zone utile")
-
+    per_page = metrics.lines_per_page
     pages: list[Page] = []
     lines_acc: list[Line] = []
     for global_index, builder in enumerate(built):
@@ -306,4 +398,5 @@ def paginate(source: SourceText, paper: PaperProfile) -> LayoutResult:
         pages=tuple(pages),
         events=tuple(events),
         coverage=coverage,
+        metrics=metrics,
     )

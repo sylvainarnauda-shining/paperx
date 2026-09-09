@@ -1,0 +1,40 @@
+L'atelier de la lenteur
+
+Il y a, dans le geste d'écrire à la main, une part que nul appareil ne remplace :
+le poignet hésite, la plume appuie, l'encre s'étale un peu plus là où le papier
+boit. Ce que l'on appelle une belle écriture n'est presque jamais régulière ;
+c'est une irrégularité tenue, une manière constante de dévier.
+
+Nous avons voulu vérifier une chose simple, et une seule : qu'un texte confié à
+une machine ressort identique à lui-même. Pas approché, pas nettoyé, pas
+« amélioré ». Identique. Un accent qui saute, une cédille avalée, une espace
+insécable remplacée par une espace ordinaire, et la phrase change de statut :
+elle devient une copie approximative, et l'on ne sait plus laquelle des deux
+fait foi.
+
+Le banc d'essai décrit ici ne sait pas imiter une écriture. Il ne le prétend pas.
+Il sait découper un texte en lignes, poser ces lignes sur une feuille A4 dont
+chaque cote est déclarée, et rendre compte, sans rien dissimuler, de ce qu'il
+n'a pas su faire. Un caractère qu'il ne connaît pas n'est ni effacé ni
+translittéré : sa place reste vide et son nom apparaît dans le rapport. Une zone
+que la machine n'atteint pas est hachurée en rouge, et le texte n'est pas
+rapetissé pour l'éviter — car rapetisser, ici, ce serait mentir avec élégance.
+
+Cette prudence a un coût. L'aperçu est austère. Les lettres sont des squelettes,
+tracés d'un seul trait, sans épaisseur variable ni retour de plume. Personne ne
+les confondra avec une main humaine, et c'est exactement ce que l'on veut : un
+gabarit qui s'annonce comme tel ne trompe personne, tandis qu'une imitation
+médiocre laisse croire qu'il ne manque qu'un réglage.
+
+Reste la question du support. Une photographie de feuille vierge renseigne sur
+le grain, la teinte, les bords, la lumière ; elle ne dit rien de la façon dont
+une personne forme ses « g » ou attaque ses majuscules. Confondre les deux, ce
+serait déduire l'écriture du papier — l'erreur est séduisante parce qu'elle
+arrange tout le monde, et fausse dès la première ligne.
+
+Nous préférons donc écrire noir sur blanc ce qui n'a pas été fait : aucun modèle
+n'a été exécuté, aucune calibration n'a eu lieu, aucune feuille n'a été écrite.
+Ce qui suit est un banc d'essai, c'est-à-dire un endroit où l'on mesure des
+écarts, pas une démonstration commerciale. Le jour où une machine posera
+réellement une plume sur du papier, il faudra tout revérifier — et ce document
+servira au moins à savoir ce que l'on croyait, ce jour-là, avoir déjà prouvé.

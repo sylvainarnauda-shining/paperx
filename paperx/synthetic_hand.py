@@ -325,6 +325,12 @@ def _build() -> dict[str, Glyph]:
     return table
 
 
+#: Composition publique : caractère accentué -> (glyphe de base, marque).
+COMPOSED_BASES: dict[str, tuple[str, str]] = dict(_COMPOSED)
+#: Ligatures approximées : caractère -> (gauche, droite, recouvrement).
+LIGATURES: dict[str, tuple[str, str, float]] = dict(_LIGATURES)
+
+
 GLYPHS: dict[str, Glyph] = _build()
 
 #: Espaces reconnues. Insécables : la ligne ne peut pas être coupée dessus.
@@ -351,3 +357,46 @@ def supported_chars() -> frozenset[str]:
 
 def hand_ref() -> str:
     return f"{HAND_ID}@{HAND_VERSION}"
+
+
+# --- Métriques d'encre réelles (mesurées sur la table ci-dessus) --------------
+# Elles servent aux réserves de mise en page : une lettre peut déborder de sa
+# chasse (le 'j' déborde à gauche) et descendre sous la ligne de base. La mise
+# en page raisonne sur ces bornes, jamais sur la seule avance.
+
+def _ink_bounds() -> tuple[float, float, float, float]:
+    xs_min, xs_over, ys_min, ys_max = 0.0, 0.0, 0.0, 0.0
+    for glyph in GLYPHS.values():
+        for stroke in glyph.strokes:
+            for x, y in stroke:
+                xs_min = min(xs_min, x)
+                xs_over = max(xs_over, x - glyph.advance)
+                ys_min = min(ys_min, y)
+                ys_max = max(ys_max, y)
+    return xs_min, xs_over, ys_min, ys_max
+
+
+#: Débord d'encre à gauche de l'origine du glyphe (em, <= 0).
+INK_MIN_X: float
+#: Débord d'encre à droite de la chasse (em, >= 0).
+INK_OVERHANG_X: float
+#: Encre la plus basse sous la ligne de base (em, <= 0) et la plus haute (em).
+INK_MIN_Y: float
+INK_MAX_Y: float
+INK_MIN_X, INK_OVERHANG_X, INK_MIN_Y, INK_MAX_Y = _ink_bounds()
+
+
+def ink_reserve_left_em() -> float:
+    return max(0.0, -INK_MIN_X)
+
+
+def ink_reserve_right_em() -> float:
+    return max(0.0, INK_OVERHANG_X)
+
+
+def ink_above_baseline_em() -> float:
+    return max(0.0, INK_MAX_Y)
+
+
+def ink_below_baseline_em() -> float:
+    return max(0.0, -INK_MIN_Y)

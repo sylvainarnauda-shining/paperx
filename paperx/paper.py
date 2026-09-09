@@ -4,12 +4,17 @@ Aucune valeur n'est mesurée sur un papier réel : le profil livré est un profi
 de DÉMONSTRATION dont toutes les cotes sont déclarées ici, en clair, et marquées
 `measured=False`. Il ne doit pas être présenté comme une caractérisation d'un
 papier du commerce.
+
+Toutes les cotes sont vérifiées à la construction : nombres finis, domaines
+valides et géométrie cohérente (une première ligne de base au-dessus de la marge
+haute, ou une zone utile négative, est refusée, pas rattrapée).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
+from . import numeric as num
 from .errors import ProfileError
 
 
@@ -34,13 +39,48 @@ class PaperProfile:
     pen_width_mm: float
 
     def __post_init__(self) -> None:
-        if not self.id or not self.version:
-            raise ProfileError("profil papier sans identifiant ou sans version")
-        for name in ("width_mm", "height_mm", "line_height_mm", "font_size_mm"):
-            if getattr(self, name) <= 0:
-                raise ProfileError(f"profil papier {self.ref()}: {name} doit être > 0")
-        if self.usable_width_mm <= 0 or self.usable_height_mm <= 0:
-            raise ProfileError(f"profil papier {self.ref()}: marges plus larges que la page")
+        problems = self.numeric_problems()
+        if problems:
+            raise ProfileError(
+                f"profil papier {self.id}@{self.version} incohérent : "
+                + " ; ".join(problems)
+            )
+
+    def numeric_problems(self) -> tuple[str, ...]:
+        """Défauts de ce profil, sans lever d'exception (utilisé par le validateur)."""
+        p: list[str] = []
+        if not isinstance(self.id, str) or not self.id.strip():
+            p.append("id : identifiant vide")
+        if not isinstance(self.version, str) or not self.version.strip():
+            p.append("version : version vide")
+        if not isinstance(self.measured, bool):
+            p.append("measured : booléen attendu")
+
+        for name in ("width_mm", "height_mm", "line_height_mm", "font_size_mm",
+                     "pen_width_mm", "first_baseline_mm"):
+            num.require_positive(p, name, getattr(self, name))
+        for name in ("margin_top_mm", "margin_bottom_mm",
+                     "margin_left_mm", "margin_right_mm"):
+            num.require_non_negative(p, name, getattr(self, name))
+        for name in ("width_mm", "height_mm", "first_baseline_mm"):
+            num.require_in_mm_domain(p, name, getattr(self, name))
+        if p:
+            return tuple(p)
+
+        if self.usable_width_mm <= 0:
+            p.append("marges gauche/droite plus larges que la page")
+        if self.usable_height_mm <= 0:
+            p.append("marges haut/bas plus hautes que la page")
+        if self.first_baseline_mm < self.margin_top_mm:
+            p.append(
+                f"first_baseline_mm ({self.first_baseline_mm}) au-dessus de la marge "
+                f"haute ({self.margin_top_mm}) : la première ligne sortirait de la zone"
+            )
+        if self.first_baseline_mm > self.height_mm - self.margin_bottom_mm:
+            p.append("first_baseline_mm sous la marge basse : aucune ligne ne tiendrait")
+        if self.line_height_mm > self.usable_height_mm:
+            p.append("interligne plus grand que la zone utile")
+        return tuple(p)
 
     def ref(self) -> str:
         return f"{self.id}@{self.version}"
@@ -53,11 +93,22 @@ class PaperProfile:
     def usable_height_mm(self) -> float:
         return self.height_mm - self.margin_top_mm - self.margin_bottom_mm
 
-    @property
-    def lines_per_page(self) -> int:
-        """Nombre de lignes de base tenant dans la zone utile (aucun tassement)."""
-        last_allowed = self.height_mm - self.margin_bottom_mm
-        span = last_allowed - self.first_baseline_mm
+    def last_baseline_mm(self, ink_below_baseline_mm: float = 0.0) -> float:
+        """Ordonnée maximale admise pour une ligne de base.
+
+        `ink_below_baseline_mm` réserve la place des descendantes et de la
+        demi-largeur de trait : l'encre, pas seulement la ligne de base, doit
+        rester au-dessus de la marge basse.
+        """
+        return self.height_mm - self.margin_bottom_mm - max(0.0, ink_below_baseline_mm)
+
+    def lines_per_page(self, ink_below_baseline_mm: float = 0.0) -> int:
+        """Nombre de lignes tenant dans la zone utile, réserve comprise.
+
+        Aucun tassement : si une ligne de plus ne tient pas, elle passe à la page
+        suivante.
+        """
+        span = self.last_baseline_mm(ink_below_baseline_mm) - self.first_baseline_mm
         if span < 0:
             return 0
         return int(span // self.line_height_mm) + 1
@@ -82,7 +133,6 @@ class PaperProfile:
             "premiere_ligne_de_base_mm": self.first_baseline_mm,
             "largeur_trait_mm": self.pen_width_mm,
             "zone_utile_mm": [round(self.usable_width_mm, 3), round(self.usable_height_mm, 3)],
-            "lignes_par_page": self.lines_per_page,
         }
 
 

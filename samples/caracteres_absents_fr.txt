@@ -1,0 +1,3 @@
+Devis : 100 centimes par page A4 (Montpellier centre).
+Signes hors couverture volontairement présents : € @ # & ~ ± ß ñ 漢 ➜	← tabulation juste avant cette flèche.
+Ils doivent être signalés un par un, conservés dans le texte, jamais remplacés.

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from . import numeric as num
 from . import synthetic_hand
 from .layout import LayoutResult
 from .paper import PaperProfile
@@ -31,10 +32,24 @@ class SpeedProfile:
     provenance: str
 
     def __post_init__(self) -> None:
-        if not self.id or not self.version:
-            raise ProfileError("profil de vitesses sans identifiant ou sans version")
-        if self.draw_speed_mm_s <= 0 or self.travel_speed_mm_s <= 0:
-            raise ProfileError(f"profil de vitesses {self.ref()} : vitesses non positives")
+        problems = self.numeric_problems()
+        if problems:
+            raise ProfileError(
+                f"profil de vitesses {self.id}@{self.version} incohérent : "
+                + " ; ".join(problems)
+            )
+
+    def numeric_problems(self) -> tuple[str, ...]:
+        p: list[str] = []
+        if not isinstance(self.id, str) or not self.id.strip():
+            p.append("id : identifiant vide")
+        if not isinstance(self.version, str) or not self.version.strip():
+            p.append("version : version vide")
+        if not isinstance(self.measured, bool):
+            p.append("measured : booléen attendu")
+        num.require_positive(p, "draw_speed_mm_s", self.draw_speed_mm_s)
+        num.require_positive(p, "travel_speed_mm_s", self.travel_speed_mm_s)
+        return tuple(p)
 
     def ref(self) -> str:
         return f"{self.id}@{self.version}"
@@ -62,6 +77,14 @@ DEMO_SPEEDS = SpeedProfile(
 )
 
 
+def _is_point(value: object) -> bool:
+    """Un point valide = couple de réels finis."""
+    return (
+        isinstance(value, tuple) and len(value) == 2
+        and num.is_finite(value[0]) and num.is_finite(value[1])
+    )
+
+
 @dataclass(frozen=True)
 class Stroke:
     """Un trait continu, plume posée."""
@@ -73,9 +96,13 @@ class Stroke:
 
     @property
     def length_mm(self) -> float:
+        """Longueur tracée. Robuste : renvoie `inf` plutôt que de déborder, et
+        `nan` si un point est malformé — jamais d'exception."""
         total = 0.0
-        for (x0, y0), (x1, y1) in zip(self.points, self.points[1:]):
-            total += ((x1 - x0) ** 2 + (y1 - y0) ** 2) ** 0.5
+        for a, b in zip(self.points, self.points[1:]):
+            if not (_is_point(a) and _is_point(b)):
+                return float("nan")
+            total += num.safe_hypot(b[0] - a[0], b[1] - a[1])
         return total
 
 
@@ -115,15 +142,27 @@ class PageTrajectory:
         return sum(s.length_mm for s in self.strokes)
 
     def travel_length_mm(self) -> float:
-        """Longueur cumulée des déplacements plume levée."""
+        """Longueur cumulée des déplacements plume levée.
+
+        Les traits vides ou malformés sont ignorés ici : ils sont refusés par le
+        validateur, qui doit pouvoir rendre un verdict sans planter.
+        """
         total = 0.0
-        for prev, nxt in zip(self.strokes, self.strokes[1:]):
-            (x0, y0), (x1, y1) = prev.points[-1], nxt.points[0]
-            total += ((x1 - x0) ** 2 + (y1 - y0) ** 2) ** 0.5
+        previous: tuple[float, float] | None = None
+        for stroke in self.strokes:
+            if not stroke.points:
+                continue
+            first, last = stroke.points[0], stroke.points[-1]
+            if not (_is_point(first) and _is_point(last)):
+                previous = None
+                continue
+            if previous is not None:
+                total += num.safe_hypot(first[0] - previous[0], first[1] - previous[1])
+            previous = last
         return total
 
     def bounds_mm(self) -> tuple[float, float, float, float] | None:
-        pts = [p for s in self.strokes for p in s.points]
+        pts = [p for s in self.strokes for p in s.points if _is_point(p)]
         if not pts:
             return None
         xs = [p[0] for p in pts]
