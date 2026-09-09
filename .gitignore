@@ -1,0 +1,68 @@
+# --- Sorties du banc d'essai (régénérables) ---
+out/
+*.svg.tmp
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# --- Interdits dans ce dépôt public (garde-fous) ---
+# Secrets / identifiants
+.env
+.env.*
+*.pem
+*.key
+*.p12
+secrets*
+credentials*
+*_token*
+*access_code*
+
+# Identifiants et configuration imprimante (jamais versionnés)
+printer.cfg
+printer_*.json
+*.gcode
+*.gco
+*.bgcode
+*.3mf
+bambu_*.json
+*serial*.txt
+
+# Données client (photos, échantillons manuscrits, dossiers)
+client/
+clients/
+donnees_client/
+echantillons/
+samples/client/
+samples/echantillon_*
+*.jpg
+*.jpeg
+*.png
+*.heic
+*.heif
+*.tif
+*.tiff
+*.raw
+*.dng
+*.pdf
+
+# Poids de modèles (aucun poids ne doit entrer ici)
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.bin
+weights/
+checkpoints/
+
+# OS / éditeurs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
