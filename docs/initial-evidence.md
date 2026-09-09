@@ -32,6 +32,8 @@ Comparer après mesures : une passe avec les vraies marges de la feuille standar
 
 [One-DM](https://github.com/dailenson/One-DM) est candidat expérimental photo → nouveaux mots, avec sortie image. Code MIT ; droits des poids externes et dépendances à vérifier séparément. Ce n'est pas une chaîne de production validée.
 
+Reproduction : `python3 docs/evidence/check_one_dm_alphabet.py` (lecture réseau du blob figé, intégrité Git contrôlée, aucune exécution du code tiers). Résultat JSON reproduit identique localement.
+
 Inspection statique exécutée sur son alphabet d'entrée : voir `evidence/one-dm-alphabet-check.json`. Le texte ASCII témoin est couvert ; les phrases françaises échouent sur accents, œ et apostrophe typographique. Le chargeur effectue une indexation directe de cet alphabet : la version publiée ne couvre donc pas ces entrées. Aucun accent ne doit être retiré pour cacher cette limite.
 
 [DiffBrush](https://github.com/dailenson/DiffBrush) génère des lignes raster, code MIT, configuration avec 15 images de référence. Une page peut contenir plusieurs extraits mais cette intégration n'est pas démontrée. [handwriting_line_generation](https://github.com/herobd/handwriting_line_generation) porte une licence non commerciale : pas de dépendance commerciale retenue.
