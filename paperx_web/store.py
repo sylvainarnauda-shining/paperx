@@ -325,6 +325,19 @@ class Store:
         out.sort(key=lambda r: (r.get("cree_le", ""), r.get("id", "")), reverse=True)
         return out
 
+    def discard_incomplete_order(self, order_id: str, sample_id: str | None) -> None:
+        """Annule une création échouée sans supprimer la photo ni une autre commande."""
+        if sample_id:
+            path = self._sample_meta_path(sample_id)
+            if path.exists():
+                meta = json.loads(path.read_text(encoding="utf-8"))
+                if meta.get("commande") == order_id:
+                    meta["commande"] = None
+                    self._write(path, self._dump(meta))
+        for variante in ("client", "operateur"):
+            self._artifact_path(order_id, variante).unlink(missing_ok=True)
+        self._order_path(order_id).unlink(missing_ok=True)
+
     def delete_order(self, order_id: str) -> dict:
         """Efface la commande, son échantillon et ses dossiers figés."""
         record = self.get_order(order_id)

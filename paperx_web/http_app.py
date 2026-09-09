@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import re
 import secrets
+import threading
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
@@ -89,6 +90,7 @@ class App:
         self.port = port
         self.token = secrets.token_urlsafe(32)
         self.operator_key = secrets.token_urlsafe(24)
+        self.order_creation_lock = threading.RLock()
         self.allowed_hosts = frozenset({
             f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}",
         })
@@ -452,6 +454,12 @@ def route_echantillon(app: App, handler: BaseHTTPRequestHandler) -> dict:
 
 
 def route_creer_commande(app: App, payload: dict) -> dict:
+    # Le contrôle du rattachement et sa création forment une seule opération.
+    with app.order_creation_lock:
+        return _creer_commande(app, payload)
+
+
+def _creer_commande(app: App, payload: dict) -> dict:
     """Crée la commande ET fige ses artefacts : le dossier remis ne bougera plus.
 
     Les coûts d'atelier ne sont PAS lus ici : une commande passée depuis l'espace
@@ -471,6 +479,8 @@ def route_creer_commande(app: App, payload: dict) -> dict:
                 "Aucune autre écriture ne sera enregistrée à sa place.")
         # Métadonnées SERVEUR uniquement : ce que le client annonce est ignoré.
         meta = app.store.get_sample(sample_id)
+        if meta.get("commande") is not None:
+            raise StoreError("échantillon déjà rattaché à une autre commande")
         if not meta.get("consentement"):
             raise service.ServiceError("échantillon sans consentement enregistré.")
         sample = {
@@ -510,22 +520,27 @@ def route_creer_commande(app: App, payload: dict) -> dict:
         "etapes_manuelles": steps,
     })
 
-    client_pkg, operator_pkg = service.build_packages(record["id"], composition, perso)
-    record["dossiers"] = {
-        "client": app.store.save_artifact(record["id"], "client", client_pkg.content),
-        "operateur": app.store.save_artifact(record["id"], "operateur",
-                                             operator_pkg.content),
-        "fige_le": record["cree_le"],
-        "note": "dossiers calculés une seule fois, à la création : un changement de "
-                "profil plus tard ne réécrit pas cette commande",
-    }
-    app.store.log(record, "artefacts_figes",
-                  f"dossiers client et opérateur figés "
-                  f"({composition.estimate.faces} page(s), "
-                  f"{composition.estimate.sheets} feuille(s))")
-    app.store.save_order(record)
-    if sample:
-        app.store.attach_sample(sample["id"], record["id"])
+    try:
+        client_pkg, operator_pkg = service.build_packages(record["id"], composition, perso)
+        record["dossiers"] = {
+            "client": app.store.save_artifact(record["id"], "client", client_pkg.content),
+            "operateur": app.store.save_artifact(record["id"], "operateur",
+                                                 operator_pkg.content),
+            "fige_le": record["cree_le"],
+            "note": "dossiers calculés une seule fois, à la création : un changement de "
+                    "profil plus tard ne réécrit pas cette commande",
+        }
+        app.store.log(record, "artefacts_figes",
+                      f"dossiers client et opérateur figés "
+                      f"({composition.estimate.faces} page(s), "
+                      f"{composition.estimate.sheets} feuille(s))")
+        app.store.save_order(record)
+        if sample:
+            app.store.attach_sample(sample["id"], record["id"])
+    except Exception:
+        # Ne jamais utiliser delete_order ici : la photo doit rester disponible.
+        app.store.discard_incomplete_order(record["id"], sample["id"] if sample else None)
+        raise
     app.store.purge_orphan_samples()
 
     return {
