@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import importlib.util
 import os
 import shutil
 import socket
@@ -142,7 +143,8 @@ def premiere_ligne_utile(chemin: Path) -> str | None:
 
 # --- A. Matériel et pile logicielle ------------------------------------------
 
-def constats_materiel() -> list[Constat]:
+def constats_materiel(trouver=None) -> list[Constat]:
+    """`trouver` remplace importlib.util.find_spec (utilisé par les tests)."""
     out: list[Constat] = []
     pilote = shutil.which("nvidia-smi") is not None or any(Path("/dev").glob("nvidia*"))
     out.append(Constat("matériel", "pilote GPU NVIDIA présent",
@@ -171,12 +173,28 @@ def constats_materiel() -> list[Constat]:
                        f"{libre:.1f} Go libres, Python {sys.version.split()[0]}",
                        bloquant=False))
 
-    manquants = [m for m in MODULES_REQUIS if __import__("importlib.util", fromlist=["util"])
-                 .find_spec(m) is None]
-    out.append(Constat("matériel", "pile d'inférence installée",
-                       REFUTE if manquants else VERIFIE,
-                       f"modules absents : {', '.join(manquants)}" if manquants
-                       else "torch, torchvision, diffusers, transformers, numpy, PIL présents"))
+    trouver = trouver or importlib.util.find_spec
+    manquants = []
+    for module in MODULES_REQUIS:
+        try:
+            repere = trouver(module) is not None
+        except (ImportError, ValueError):
+            repere = False
+        if not repere:
+            manquants.append(module)
+    out.append(Constat(
+        "matériel", "modules d'inférence repérables (find_spec)",
+        REFUTE if manquants else VERIFIE,
+        f"introuvables : {', '.join(manquants)}" if manquants
+        else f"repérés : {', '.join(MODULES_REQUIS)} — la repérabilité ne dit rien "
+             "de leur fonctionnement ni de leurs versions",
+        bloquant=False))
+    out.append(Constat(
+        "matériel", "pile d'inférence fonctionnelle et versions compatibles",
+        REFUTE if manquants else NON_VERIFIE,
+        f"modules introuvables : {', '.join(manquants)}" if manquants
+        else "non testé : exigerait d'importer et de faire tourner ces modules, "
+             "et de confronter leurs versions à celles des dépôts amont"))
     return out
 
 
@@ -261,12 +279,21 @@ def constats_depots(racine: Path) -> tuple[list[Constat], dict]:
         "sources", "droit d'usage des poids pré-entraînés", NON_VERIFIE,
         "aucune licence énoncée pour les poids dans les deux dépôts (la licence "
         "MIT porte sur le code) : accord écrit des auteurs à obtenir"))
+    peuples = [nom for nom, e in etat.items()
+               if e["present"] and (e["chemin"] / "model_zoo").is_dir()
+               and any((e["chemin"] / "model_zoo").iterdir())]
     out.append(Constat(
-        "sources", "poids pré-entraînés présents localement", NON_VERIFIE
-        if not any((e["chemin"] / "model_zoo").is_dir() and
-                   any((e["chemin"] / "model_zoo").iterdir())
-                   for e in etat.values() if e["present"]) else VERIFIE,
-        "aucun model_zoo peuplé dans les clones (ce programme n'en télécharge pas)"))
+        "sources", "dossier model_zoo contenant des fichiers",
+        VERIFIE if peuples else REFUTE,
+        f"non vide dans : {', '.join(peuples)} — la présence de fichiers ne dit pas "
+        "lesquels" if peuples
+        else "aucun model_zoo non vide dans les clones",
+        bloquant=False))
+    out.append(Constat(
+        "sources", "poids exacts présents et intègres", NON_VERIFIE,
+        "non vérifié : ce programme ne télécharge rien, ne connaît aucune empreinte "
+        "de référence publiée, et ne distingue pas un point de contrôle d'un simple "
+        "fichier déposé dans model_zoo"))
     return out, etat
 
 

@@ -218,12 +218,13 @@ code non nul, écrire du code d'inférence serait écrire du code invérifiable.
 Trois pistes restent ouvertes en parallèle, sans promesse et sans qu'un GPU
 payant soit imposé :
 
-- **Adaptation CPU, ou MPS sur Apple.** Les deux points d'entrée appellent
-  `nccl` et `cuda.set_device` sans condition ; un correctif local (backend
-  `gloo` ou exécution mono-processus, device paramétré) est techniquement à
-  portée. Reste à étudier, sans engagement : le coût d'un échantillonnage DDIM
-  50 pas dépend de la taille du UNet, **inconnue tant que les poids ne sont pas
-  obtenus**. Rien ne sera écrit avant d'avoir de quoi le mesurer.
+- **Adaptation CPU, ou MPS sur Apple.** Analyse ciblée faite :
+  [`docs/ADAPTATION-CPU-ONE-DM.md`](ADAPTATION-CPU-ONE-DM.md) — cinq
+  modifications dans le seul `test.py`, aucune dans les modèles, et un obstacle
+  supplémentaire découvert au passage (`download.pytorch.org`, requis trois fois
+  à la construction du modèle, lui aussi bloqué ici). Aucun chiffre de
+  performance n'est avancé : le coût dépend de la taille du UNet, **inconnue
+  tant que les poids ne sont pas obtenus**.
 - **Droit d'usage des poids**, à demander par écrit aux auteurs — démarche
   indépendante du calcul.
 - **Échantillon manuscrit explicitement réutilisable**, hors dépôt, jamais

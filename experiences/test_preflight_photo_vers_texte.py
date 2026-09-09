@@ -158,10 +158,47 @@ class TestRefusDesFauxPositifs(unittest.TestCase):
         constats += depots + pf.constats_alphabet(etat, Path(__file__).resolve().parent.parent)
         invariants = {"téléchargement du fichier de poids exact",
                       "droit d'usage des poids pré-entraînés",
-                      "poids pré-entraînés présents localement"}
+                      "poids exacts présents et intègres"}
         presents = {c.nom for c in constats if c.statut == pf.NON_VERIFIE and c.bloquant}
         self.assertTrue(invariants <= presents, invariants - presents)
         self.assertNotEqual(pf.synthese(constats)[0], 0)
+
+    def test_model_zoo_readme_ne_prouve_pas_des_poids(self):
+        """Témoin de revue : un simple README suffisait à valider « poids présents »."""
+        racine = Path(tempfile.mkdtemp())
+        for meta in pf.UPSTREAM.values():
+            zoo = racine / meta["dir"] / "model_zoo"
+            zoo.mkdir(parents=True)
+            (zoo / "README").write_text("télécharger les poids ici\n", encoding="utf-8")
+        constats, _ = pf.constats_depots(racine)
+        poids = [c for c in constats if c.nom == "poids exacts présents et intègres"][0]
+        self.assertEqual(poids.statut, pf.NON_VERIFIE)
+        self.assertTrue(poids.bloquant)
+        dossier = [c for c in constats if c.nom == "dossier model_zoo contenant des fichiers"][0]
+        self.assertEqual(dossier.statut, pf.VERIFIE)
+        self.assertFalse(dossier.bloquant, "un dossier non vide n'est qu'un indice")
+        self.assertNotIn("aucun model_zoo", dossier.preuve,
+                         "la preuve ne doit pas contredire le statut")
+        self.assertNotEqual(pf.synthese(constats)[0], 0)
+
+    def test_modules_simules_ne_prouvent_pas_une_pile_fonctionnelle(self):
+        """Témoin de revue : find_spec ne prouve que la repérabilité."""
+        constats = pf.constats_materiel(trouver=lambda nom: object())
+        repere = [c for c in constats
+                  if c.nom == "modules d'inférence repérables (find_spec)"][0]
+        self.assertEqual(repere.statut, pf.VERIFIE)
+        self.assertFalse(repere.bloquant)
+        pile = [c for c in constats
+                if c.nom == "pile d'inférence fonctionnelle et versions compatibles"][0]
+        self.assertEqual(pile.statut, pf.NON_VERIFIE)
+        self.assertTrue(pile.bloquant)
+
+    def test_modules_absents_donnent_un_blocage_prouve(self):
+        constats = pf.constats_materiel(trouver=lambda nom: None)
+        pile = [c for c in constats
+                if c.nom == "pile d'inférence fonctionnelle et versions compatibles"][0]
+        self.assertEqual(pile.statut, pf.REFUTE)
+        self.assertEqual(pf.synthese(constats)[0], 1)
 
     def test_synthese_refute_prime_sur_tout(self):
         constats = [pf.Constat("d", "ok", pf.VERIFIE, "preuve") for _ in range(10)]
